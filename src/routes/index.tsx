@@ -467,6 +467,29 @@ function Field({
   );
 }
 
+function BracketTextField({
+  label, prefixWord, characterName, value, onChange,
+}: {
+  label: string; prefixWord: string; characterName: string;
+  value: string; onChange: (v: string) => void;
+}) {
+  const { traits } = extractBracket(value ?? "", prefixWord);
+  const current = traits[0] ?? "";
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        className="mt-1"
+        value={current}
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          onChange(upsertBracket(value ?? "", prefixWord, characterName, v ? [v] : []));
+        }}
+      />
+    </div>
+  );
+}
+
 function RawEditor({ card, onChange }: { card: AnyObj; onChange: (c: AnyObj) => void }) {
   const [text, setText] = useState(() => JSON.stringify(card, null, 2));
   const [err, setErr] = useState<string | null>(null);
