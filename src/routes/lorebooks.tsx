@@ -24,6 +24,7 @@ import {
   type Lorebook,
   type LorebookEntry,
 } from "@/lib/lorebook";
+import { CloudDocsMenu } from "@/components/CloudDocsMenu";
 
 export const Route = createFileRoute("/lorebooks")({
   ssr: false,
@@ -43,6 +44,7 @@ function LorebooksPage() {
   const session = useSession();
   const [book, setBook] = useState<Lorebook>(() => emptyLorebook());
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
+  const [docId, setDocId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const entries = useMemo(
@@ -148,10 +150,28 @@ function LorebooksPage() {
               onClick={() => {
                 setBook(emptyLorebook());
                 setSelectedUid(null);
+                setDocId(null);
               }}
             >
               Neu
             </Button>
+            <CloudDocsMenu
+              session={session}
+              table="lorebooks"
+              label="Meine Lorebooks"
+              currentId={docId}
+              currentName={book.name}
+              currentData={book}
+              onLoad={(row) => {
+                setBook(row.data as Lorebook);
+                setDocId(row.id);
+                setSelectedUid(null);
+              }}
+              onSaved={(row) => setDocId(row.id)}
+              onDeleted={(id) => {
+                if (docId === id) setDocId(null);
+              }}
+            />
           </div>
         </div>
       </div>
