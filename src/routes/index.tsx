@@ -88,8 +88,60 @@ function Editor() {
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("character");
+  const [charId, setCharId] = useState<string | null>(null);
+  const [characters, setCharacters] = useState<CharacterRow[]>([]);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    try { setCharacters(await listCharacters()); } catch (e: any) { toast.error(e.message); }
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const save = async () => {
+    if (!card) return;
+    setSaving(true);
+    try {
+      const row = await saveCharacter({
+        id: charId ?? undefined,
+        name: (card.data?.name ?? card.name ?? fileName) || "Unnamed",
+        data: card,
+        png: pngBytes,
+      });
+      setCharId(row.id);
+      toast.success("Gespeichert");
+      await refresh();
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const loadFromDb = async (row: CharacterRow) => {
+    setCard(row.data);
+    setCharId(row.id);
+    setFileName(row.name);
+    if (row.image_path) {
+      try {
+        const bytes = await downloadImage(row.image_path);
+        setPngBytes(bytes);
+        setImageUrl(URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/png" })));
+      } catch { setPngBytes(null); setImageUrl(null); }
+    } else { setPngBytes(null); setImageUrl(null); }
+    toast.success(`"${row.name}" geladen`);
+  };
+
+  const removeFromDb = async (row: CharacterRow) => {
+    if (!confirm(`"${row.name}" löschen?`)) return;
+    try {
+      await deleteCharacter(row);
+      if (charId === row.id) setCharId(null);
+      toast.success("Gelöscht");
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const signOut = async () => { await supabase.auth.signOut(); };
+
+
 
   const data: AnyObj = useMemo(() => (card?.data ?? card ?? {}) as AnyObj, [card]);
 
