@@ -48,6 +48,8 @@ function emptyDesc(): PersonaDesc {
 function UserCardPage() {
   const session = useSession();
   const [file, setFile] = useState<PersonasFile>(() => emptyFile());
+  const [docId, setDocId] = useState<string | null>(null);
+  const [docName, setDocName] = useState<string>("Personas");
   const [selected, setSelected] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
