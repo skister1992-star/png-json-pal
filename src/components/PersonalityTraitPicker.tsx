@@ -12,23 +12,40 @@ import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
 import { Plus, X } from "lucide-react";
 
 /**
- * Parses quoted traits ("foo", "bar") out of the personality text.
- * Returns the list of traits and the remaining "free" text (non-quoted parts).
+ * Parses quoted traits out of the personality text.
+ * Supports the bracket format: [Name's Personality, "foo", "bar"]
+ * Falls back to plain quoted traits and free text.
  */
 function parsePersonality(text: string): { traits: string[]; rest: string } {
   const traits: string[] = [];
-  const rest = (text ?? "").replace(/"([^"\n]+)"/g, (_, t) => {
+  const trimmed = (text ?? "").trim();
+
+  // Bracket format: [Name's Personality, "foo", "bar"]
+  const bracketMatch = trimmed.match(/^\[(.*)\]$/s);
+  if (bracketMatch) {
+    const inner = bracketMatch[1];
+    // Remove prefix up to "Personality" (case-insensitive, optional apostrophe-s)
+    const traitPart = inner.replace(/^.+?(?:'s)?\s*Personality\s*,?\s*/is, "");
+    traitPart.replace(/"([^"\n]+)"/g, (_, t) => {
+      traits.push(String(t).trim());
+      return "";
+    });
+    return { traits, rest: "" };
+  }
+
+  // Fallback: plain quoted traits + free text
+  const rest = trimmed.replace(/"([^"\n]+)"/g, (_, t) => {
     traits.push(String(t).trim());
     return "";
   });
   return { traits, rest: rest.replace(/\s*,\s*,\s*/g, ", ").replace(/^\s*,\s*|\s*,\s*$/g, "").trim() };
 }
 
-function buildPersonality(traits: string[], rest: string): string {
+function buildPersonality(traits: string[], _rest: string, name: string): string {
   const quoted = traits.map((t) => `"${t}"`).join(", ");
-  if (!rest) return quoted;
-  if (!quoted) return rest;
-  return `${quoted}\n${rest}`;
+  const prefix = name ? `${name}'s Personality` : "Personality";
+  if (!quoted) return `[${prefix}]`;
+  return `[${prefix}, ${quoted}]`;
 }
 
 export function PersonalityTraitPicker({
