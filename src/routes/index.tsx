@@ -37,40 +37,19 @@ export const Route = createFileRoute("/")({
 
 function Page() {
   const [session, setSession] = useState<Session | null>(null);
-  const [ready, setReady] = useState(false);
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     return () => sub.subscription.unsubscribe();
   }, []);
-  if (!ready) return <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">Lädt…</div>;
-  if (!session) return <LoginScreen />;
-  return <Editor />;
+  return <Editor session={session} />;
 }
 
-function LoginScreen() {
-  const [busy, setBusy] = useState(false);
-  const signIn = async () => {
-    setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (res.error) { toast.error(res.error.message ?? "Login fehlgeschlagen"); setBusy(false); }
-  };
-  return (
-    <div className="min-h-screen grid place-items-center bg-background text-foreground p-6">
-      <Toaster richColors theme="dark" position="top-right" />
-      <Card className="p-8 max-w-sm w-full text-center space-y-5">
-        <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center text-primary-foreground font-bold text-2xl">C</div>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Character Card Editor</h1>
-          <p className="text-sm text-muted-foreground mt-1">Melde dich an, um deine Charaktere zu speichern und fortzusetzen.</p>
-        </div>
-        <Button className="w-full" onClick={signIn} disabled={busy}>
-          {busy ? "Weiterleiten…" : "Mit Google anmelden"}
-        </Button>
-      </Card>
-    </div>
-  );
+async function signInWithGoogle() {
+  const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+  if (res.error) toast.error(res.error.message ?? "Login fehlgeschlagen");
 }
+
 
 type AnyObj = Record<string, any>;
 
@@ -83,7 +62,8 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Editor() {
+function Editor({ session }: { session: Session | null }) {
+
   const [card, setCard] = useState<AnyObj | null>(null);
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -95,9 +75,11 @@ function Editor() {
   const imgRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
+    if (!session) { setCharacters([]); return; }
     try { setCharacters(await listCharacters()); } catch (e: any) { toast.error(e.message); }
-  }, []);
+  }, [session]);
   useEffect(() => { refresh(); }, [refresh]);
+
 
   const save = async () => {
     if (!card) return;
@@ -323,9 +305,15 @@ function Editor() {
             </Button>
             <Button variant="ghost" size="sm" onClick={() => { setCharId(null); newCard(); }}>New</Button>
             <Separator orientation="vertical" className="h-6" />
-            <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
-              <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
-            </Button>
+            {session ? (
+              <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
+                <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
+              </Button>
+            ) : (
+              <Button variant="default" size="sm" onClick={signInWithGoogle}>
+                Anmelden zum Speichern
+              </Button>
+            )}
             <Separator orientation="vertical" className="h-6" />
             <Button variant="outline" size="sm" onClick={exportJson} disabled={!card}>
               <FileJson className="h-4 w-4" /> JSON
@@ -333,10 +321,15 @@ function Editor() {
             <Button variant="outline" size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
               <Download className="h-4 w-4" /> PNG
             </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <Button variant="ghost" size="sm" onClick={signOut} title="Abmelden">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {session && (
+              <>
+                <Separator orientation="vertical" className="h-6" />
+                <Button variant="ghost" size="sm" onClick={signOut} title="Abmelden">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+
 
           </div>
         </div>
@@ -381,28 +374,37 @@ function Editor() {
                 </Card>
               </>
             )}
-            <Card className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
-                <span className="text-xs text-muted-foreground">{characters.length}</span>
-              </div>
-              {characters.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
-              ) : (
-                <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
-                  {characters.map((c) => (
-                    <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
-                      <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
-                        {c.name || "Unnamed"}
-                      </button>
-                      <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+            {session ? (
+              <Card className="p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
+                  <span className="text-xs text-muted-foreground">{characters.length}</span>
+                </div>
+                {characters.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
+                ) : (
+                  <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
+                    {characters.map((c) => (
+                      <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
+                        <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
+                          {c.name || "Unnamed"}
+                        </button>
+                        <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            ) : (
+              <Card className="p-3 space-y-2 text-xs">
+                <Label className="text-xs font-semibold">Speichern & Fortsetzen</Label>
+                <p className="text-muted-foreground">Melde dich an, um deine Charaktere in der Cloud zu speichern.</p>
+                <Button size="sm" className="w-full" onClick={signInWithGoogle}>Mit Google anmelden</Button>
+              </Card>
+            )}
+
           </aside>
 
           <section>
