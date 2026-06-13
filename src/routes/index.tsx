@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { extractCharaJson, embedCharaJson } from "@/lib/png-chara";
+import { PersonalityTraitPicker } from "@/components/PersonalityTraitPicker";
 import { Download, Upload, FileJson, ImageIcon, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -295,12 +296,18 @@ function Editor() {
                     onChange={(v) => update(["description"], v)}
                     multiline rows={8}
                   />
-                  <Field
-                    label="Personality"
-                    value={data.personality}
-                    onChange={(v) => update(["personality"], v)}
-                    multiline rows={3}
-                  />
+                  <div className="space-y-2">
+                    <Field
+                      label="Personality"
+                      value={data.personality}
+                      onChange={(v) => update(["personality"], v)}
+                      multiline rows={3}
+                    />
+                    <PersonalityTraitPicker
+                      value={data.personality ?? ""}
+                      onChange={(v) => update(["personality"], v)}
+                    />
+                  </div>
                   <Field
                     label="Scenario"
                     value={data.scenario}
