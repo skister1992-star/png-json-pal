@@ -75,9 +75,11 @@ function Editor({ session }: { session: Session | null }) {
   const imgRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
+    if (!session) { setCharacters([]); return; }
     try { setCharacters(await listCharacters()); } catch (e: any) { toast.error(e.message); }
-  }, []);
+  }, [session]);
   useEffect(() => { refresh(); }, [refresh]);
+
 
   const save = async () => {
     if (!card) return;
