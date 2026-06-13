@@ -580,11 +580,13 @@ function Editor() {
                   <RawEditor card={card} onChange={setCard} />
                 </TabsContent>
               </Tabs>
-            </section>
-          </div>
-        )}
+              </>
+            )}
+          </section>
+        </div>
       </main>
     </div>
+
   );
 }
 
