@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { extractCharaJson, embedCharaJson } from "@/lib/png-chara";
-import { PersonalityTraitPicker } from "@/components/PersonalityTraitPicker";
+import { TraitPicker, extractBracket, upsertBracket } from "@/components/TraitPicker";
+import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
+import { APPEARANCE_GROUPS } from "@/lib/appearance-traits";
 import { Download, Upload, FileJson, ImageIcon, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -303,10 +305,35 @@ function Editor() {
                       onChange={(v) => update(["personality"], v)}
                       multiline rows={3}
                     />
-                    <PersonalityTraitPicker
+                    <TraitPicker
+                      title="Eigenschaften (Personality)"
+                      prefixWord="Personality"
+                      characterName={data.name ?? ""}
                       value={data.personality ?? ""}
                       onChange={(v) => update(["personality"], v)}
+                      groups={PERSONALITY_GROUPS}
+                    />
+                    <TraitPicker
+                      title="Aussehen (body)"
+                      prefixWord="body"
                       characterName={data.name ?? ""}
+                      value={data.personality ?? ""}
+                      onChange={(v) => update(["personality"], v)}
+                      groups={APPEARANCE_GROUPS}
+                    />
+                    <BracketTextField
+                      label="Geschlecht"
+                      prefixWord="Geschlecht"
+                      characterName={data.name ?? ""}
+                      value={data.personality ?? ""}
+                      onChange={(v) => update(["personality"], v)}
+                    />
+                    <BracketTextField
+                      label="Alter"
+                      prefixWord="Alter"
+                      characterName={data.name ?? ""}
+                      value={data.personality ?? ""}
+                      onChange={(v) => update(["personality"], v)}
                     />
                   </div>
                   <Field
@@ -436,6 +463,29 @@ function Field({
       ) : (
         <Input className="mt-1" value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
       )}
+    </div>
+  );
+}
+
+function BracketTextField({
+  label, prefixWord, characterName, value, onChange,
+}: {
+  label: string; prefixWord: string; characterName: string;
+  value: string; onChange: (v: string) => void;
+}) {
+  const { traits } = extractBracket(value ?? "", prefixWord);
+  const current = traits[0] ?? "";
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        className="mt-1"
+        value={current}
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          onChange(upsertBracket(value ?? "", prefixWord, characterName, v ? [v] : []));
+        }}
+      />
     </div>
   );
 }
