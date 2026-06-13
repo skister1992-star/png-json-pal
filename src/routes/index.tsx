@@ -51,30 +51,6 @@ async function signInWithGoogle() {
 }
 
 
-function LoginScreen() {
-  const [busy, setBusy] = useState(false);
-  const signIn = async () => {
-    setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (res.error) { toast.error(res.error.message ?? "Login fehlgeschlagen"); setBusy(false); }
-  };
-  return (
-    <div className="min-h-screen grid place-items-center bg-background text-foreground p-6">
-      <Toaster richColors theme="dark" position="top-right" />
-      <Card className="p-8 max-w-sm w-full text-center space-y-5">
-        <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center text-primary-foreground font-bold text-2xl">C</div>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Character Card Editor</h1>
-          <p className="text-sm text-muted-foreground mt-1">Melde dich an, um deine Charaktere zu speichern und fortzusetzen.</p>
-        </div>
-        <Button className="w-full" onClick={signIn} disabled={busy}>
-          {busy ? "Weiterleiten…" : "Mit Google anmelden"}
-        </Button>
-      </Card>
-    </div>
-  );
-}
-
 type AnyObj = Record<string, any>;
 
 function downloadBlob(blob: Blob, name: string) {
@@ -86,7 +62,8 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Editor() {
+function Editor({ session }: { session: Session | null }) {
+
   const [card, setCard] = useState<AnyObj | null>(null);
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
