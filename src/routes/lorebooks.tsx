@@ -150,10 +150,28 @@ function LorebooksPage() {
               onClick={() => {
                 setBook(emptyLorebook());
                 setSelectedUid(null);
+                setDocId(null);
               }}
             >
               Neu
             </Button>
+            <CloudDocsMenu
+              session={session}
+              table="lorebooks"
+              label="Meine Lorebooks"
+              currentId={docId}
+              currentName={book.name}
+              currentData={book}
+              onLoad={(row) => {
+                setBook(row.data as Lorebook);
+                setDocId(row.id);
+                setSelectedUid(null);
+              }}
+              onSaved={(row) => setDocId(row.id)}
+              onDeleted={(id) => {
+                if (docId === id) setDocId(null);
+              }}
+            />
           </div>
         </div>
       </div>
