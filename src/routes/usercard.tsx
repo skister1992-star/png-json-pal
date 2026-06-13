@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SiteHeader, useSession } from "@/components/SiteHeader";
 import { Download, Plus, Trash2, Upload, Star, UserCircle } from "lucide-react";
+import { CloudDocsMenu } from "@/components/CloudDocsMenu";
 
 export const Route = createFileRoute("/usercard")({
   ssr: false,
