@@ -14,13 +14,17 @@ import { TraitPicker, extractBracket, upsertBracket } from "@/components/TraitPi
 import { ClothingPicker } from "@/components/ClothingPicker";
 import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
 import { APPEARANCE_GROUPS } from "@/lib/appearance-traits";
-import { Download, Upload, FileJson, ImageIcon, Plus, Trash2, Save, LogOut, FolderOpen } from "lucide-react";
+import { Download, Upload, FileJson, ImageIcon, Plus, Trash2, Save, FolderOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   listCharacters, saveCharacter, deleteCharacter, downloadImage, type CharacterRow,
 } from "@/lib/character-store";
 import type { Session } from "@supabase/supabase-js";
+import { SiteHeader, useSession, signInWithGoogle } from "@/components/SiteHeader";
 
 export const Route = createFileRoute("/editor")({
   ssr: false,
