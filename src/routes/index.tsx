@@ -306,6 +306,7 @@ function Editor() {
                     <PersonalityTraitPicker
                       value={data.personality ?? ""}
                       onChange={(v) => update(["personality"], v)}
+                      characterName={data.name ?? ""}
                     />
                   </div>
                   <Field
