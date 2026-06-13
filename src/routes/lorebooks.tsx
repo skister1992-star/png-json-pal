@@ -24,6 +24,7 @@ import {
   type Lorebook,
   type LorebookEntry,
 } from "@/lib/lorebook";
+import { CloudDocsMenu } from "@/components/CloudDocsMenu";
 
 export const Route = createFileRoute("/lorebooks")({
   ssr: false,
