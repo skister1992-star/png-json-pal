@@ -40,18 +40,8 @@ export const Route = createFileRoute("/editor")({
 });
 
 function Page() {
-  const [session, setSession] = useState<Session | null>(null);
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const session = useSession();
   return <Editor session={session} />;
-}
-
-async function signInWithGoogle() {
-  const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-  if (res.error) toast.error(res.error.message ?? "Login fehlgeschlagen");
 }
 
 
