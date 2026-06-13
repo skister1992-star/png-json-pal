@@ -321,14 +321,23 @@ function Editor() {
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
               <Upload className="h-4 w-4" /> Load
             </Button>
-            <Button variant="ghost" size="sm" onClick={newCard}>New</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setCharId(null); newCard(); }}>New</Button>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
+              <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
+            </Button>
             <Separator orientation="vertical" className="h-6" />
             <Button variant="outline" size="sm" onClick={exportJson} disabled={!card}>
               <FileJson className="h-4 w-4" /> JSON
             </Button>
-            <Button size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
+            <Button variant="outline" size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
               <Download className="h-4 w-4" /> PNG
             </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="ghost" size="sm" onClick={signOut} title="Abmelden">
+              <LogOut className="h-4 w-4" />
+            </Button>
+
           </div>
         </div>
       </header>
