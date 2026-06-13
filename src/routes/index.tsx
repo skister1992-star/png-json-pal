@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,16 @@ import { TraitPicker, extractBracket, upsertBracket } from "@/components/TraitPi
 import { ClothingPicker } from "@/components/ClothingPicker";
 import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
 import { APPEARANCE_GROUPS } from "@/lib/appearance-traits";
-import { Download, Upload, FileJson, ImageIcon, Plus, Trash2 } from "lucide-react";
+import { Download, Upload, FileJson, ImageIcon, Plus, Trash2, Save, LogOut, FolderOpen } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import {
+  listCharacters, saveCharacter, deleteCharacter, downloadImage, type CharacterRow,
+} from "@/lib/character-store";
+import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Character Card Editor — PNG + JSON" },
@@ -25,8 +32,45 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Edit PNG + JSON character cards in the browser." },
     ],
   }),
-  component: Editor,
+  component: Page,
 });
+
+function Page() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  if (!ready) return <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">Lädt…</div>;
+  if (!session) return <LoginScreen />;
+  return <Editor />;
+}
+
+function LoginScreen() {
+  const [busy, setBusy] = useState(false);
+  const signIn = async () => {
+    setBusy(true);
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    if (res.error) { toast.error(res.error.message ?? "Login fehlgeschlagen"); setBusy(false); }
+  };
+  return (
+    <div className="min-h-screen grid place-items-center bg-background text-foreground p-6">
+      <Toaster richColors theme="dark" position="top-right" />
+      <Card className="p-8 max-w-sm w-full text-center space-y-5">
+        <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center text-primary-foreground font-bold text-2xl">C</div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Character Card Editor</h1>
+          <p className="text-sm text-muted-foreground mt-1">Melde dich an, um deine Charaktere zu speichern und fortzusetzen.</p>
+        </div>
+        <Button className="w-full" onClick={signIn} disabled={busy}>
+          {busy ? "Weiterleiten…" : "Mit Google anmelden"}
+        </Button>
+      </Card>
+    </div>
+  );
+}
 
 type AnyObj = Record<string, any>;
 
