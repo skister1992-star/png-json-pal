@@ -164,7 +164,13 @@ function UserCardPage() {
         <div className="max-w-6xl mx-auto px-6 py-3 flex flex-wrap items-center gap-2">
           <UserCircle className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground mr-2">UserCard Editor</span>
-          <div className="ml-auto flex gap-2">
+          <Input
+            value={docName}
+            onChange={(e) => setDocName(e.target.value)}
+            className="h-8 max-w-[220px]"
+            placeholder="Name"
+          />
+          <div className="ml-auto flex gap-2 flex-wrap">
             <input
               ref={fileRef}
               type="file"
@@ -188,10 +194,33 @@ function UserCardPage() {
               onClick={() => {
                 setFile(emptyFile());
                 setSelected(null);
+                setDocId(null);
+                setDocName("Personas");
               }}
             >
               Neu
             </Button>
+            <CloudDocsMenu
+              session={session}
+              table="user_cards"
+              label="Meine UserCards"
+              currentId={docId}
+              currentName={docName}
+              currentData={file}
+              onLoad={(row) => {
+                setFile(row.data as PersonasFile);
+                setDocId(row.id);
+                setDocName(row.name);
+                setSelected(null);
+              }}
+              onSaved={(row) => {
+                setDocId(row.id);
+                setDocName(row.name);
+              }}
+              onDeleted={(id) => {
+                if (docId === id) setDocId(null);
+              }}
+            />
           </div>
         </div>
       </div>
