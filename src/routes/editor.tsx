@@ -22,7 +22,7 @@ import {
 } from "@/lib/character-store";
 import type { Session } from "@supabase/supabase-js";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/editor")({
   ssr: false,
   head: () => ({
     meta: [
