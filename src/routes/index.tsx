@@ -343,44 +343,74 @@ function Editor() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {!card ? (
-          <EmptyState onPick={() => fileRef.current?.click()} onNew={newCard} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-            <aside className="space-y-4">
-              <Card className="overflow-hidden p-0">
-                <div className="aspect-[2/3] bg-muted relative">
-                  {imageUrl ? (
-                    <img src={imageUrl} alt="card" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
-                      <div className="text-center">
-                        <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        No image
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          <aside className="space-y-4">
+            {card && (
+              <>
+                <Card className="overflow-hidden p-0">
+                  <div className="aspect-[2/3] bg-muted relative">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt="card" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          No image
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 space-y-2">
-                  <input
-                    ref={imgRef}
-                    type="file"
-                    accept="image/png"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && replaceImage(e.target.files[0])}
-                  />
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => imgRef.current?.click()}>
-                    <ImageIcon className="h-4 w-4" /> {pngBytes ? "Replace image" : "Add PNG"}
-                  </Button>
-                  <div className="text-xs text-muted-foreground text-center truncate">{fileName}</div>
-                </div>
-              </Card>
-              <Card className="p-3 text-xs space-y-1">
-                <div className="flex justify-between"><span className="text-muted-foreground">Spec</span><Badge variant="secondary">{card.spec ?? "v1"}</Badge></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Book entries</span><span>{book.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Tags</span><span>{(data.tags ?? []).length}</span></div>
-              </Card>
-            </aside>
+                    )}
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <input
+                      ref={imgRef}
+                      type="file"
+                      accept="image/png"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && replaceImage(e.target.files[0])}
+                    />
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => imgRef.current?.click()}>
+                      <ImageIcon className="h-4 w-4" /> {pngBytes ? "Replace image" : "Add PNG"}
+                    </Button>
+                    <div className="text-xs text-muted-foreground text-center truncate">{fileName}</div>
+                  </div>
+                </Card>
+                <Card className="p-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Spec</span><Badge variant="secondary">{card.spec ?? "v1"}</Badge></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Book entries</span><span>{book.length}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tags</span><span>{(data.tags ?? []).length}</span></div>
+                </Card>
+              </>
+            )}
+            <Card className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
+                <span className="text-xs text-muted-foreground">{characters.length}</span>
+              </div>
+              {characters.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
+              ) : (
+                <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
+                  {characters.map((c) => (
+                    <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
+                      <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
+                        {c.name || "Unnamed"}
+                      </button>
+                      <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </aside>
+
+          <section>
+            {!card ? (
+              <EmptyState onPick={() => fileRef.current?.click()} onNew={newCard} />
+            ) : (
+              <>
+
 
             <section>
               <div className="mb-4">
