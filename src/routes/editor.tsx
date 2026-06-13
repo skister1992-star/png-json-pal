@@ -115,7 +115,7 @@ function Editor({ session }: { session: Session | null }) {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  
 
 
 
