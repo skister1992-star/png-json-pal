@@ -1,18 +1,14 @@
 export const APPEARANCE_GROUPS: { label: string; traits: string[] }[] = [
   {
-    label: "Haare (Farbe + Länge)",
+    label: "Haarlänge",
+    traits: ["langes Haar", "mittellanges Haar", "kurzes Haar"],
+  },
+  {
+    label: "Haarfarbe",
     traits: [
-      "langes braunes Haar", "mittellanges braunes Haar", "kurzes braunes Haar",
-      "langes blondes Haar", "mittellanges blondes Haar", "kurzes blondes Haar",
-      "langes weißes Haar", "mittellanges weißes Haar", "kurzes weißes Haar",
-      "langes rotes Haar", "mittellanges rotes Haar", "kurzes rotes Haar",
-      "langes schwarzes Haar", "mittellanges schwarzes Haar", "kurzes schwarzes Haar",
-      "langes silbernes Haar", "mittellanges silbernes Haar", "kurzes silbernes Haar",
-      "langes graues Haar", "mittellanges graues Haar", "kurzes graues Haar",
-      "langes pinkes Haar", "mittellanges pinkes Haar", "kurzes pinkes Haar",
-      "langes blaues Haar", "mittellanges blaues Haar", "kurzes blaues Haar",
-      "langes lilanes Haar", "mittellanges lilanes Haar", "kurzes lilanes Haar",
-      "langes grünes Haar", "mittellanges grünes Haar", "kurzes grünes Haar",
+      "braunes Haar", "blondes Haar", "weißes Haar", "rotes Haar",
+      "schwarzes Haar", "silbernes Haar", "graues Haar", "pinkes Haar",
+      "blaues Haar", "lilanes Haar", "grünes Haar",
     ],
   },
   {
