@@ -275,59 +275,78 @@ function Editor({ session }: { session: Session | null }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors theme="dark" position="top-right" />
-      <header className="border-b border-border/60 backdrop-blur sticky top-0 z-10 bg-background/80">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-md bg-gradient-to-br from-primary to-primary/60 grid place-items-center text-primary-foreground font-bold">
-              C
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">Character Card Editor</h1>
-              <p className="text-xs text-muted-foreground">PNG · JSON · SillyTavern v2 / v3</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".png,.json,image/png,application/json"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-            />
-            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-              <Upload className="h-4 w-4" /> Load
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => { setCharId(null); newCard(); }}>New</Button>
-            <Separator orientation="vertical" className="h-6" />
-            {session ? (
-              <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
-                <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
-              </Button>
-            ) : (
-              <Button variant="default" size="sm" onClick={signInWithGoogle}>
-                Anmelden zum Speichern
-              </Button>
-            )}
-            <Separator orientation="vertical" className="h-6" />
-            <Button variant="outline" size="sm" onClick={exportJson} disabled={!card}>
-              <FileJson className="h-4 w-4" /> JSON
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
-              <Download className="h-4 w-4" /> PNG
-            </Button>
-            {session && (
-              <>
-                <Separator orientation="vertical" className="h-6" />
-                <Button variant="ghost" size="sm" onClick={signOut} title="Abmelden">
-                  <LogOut className="h-4 w-4" />
+      <SiteHeader
+        session={session}
+        rightSlot={
+          session && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FolderOpen className="h-4 w-4" /> Meine Cards ({characters.length})
                 </Button>
-              </>
-            )}
-
-
-          </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Gespeicherte Charaktere</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {characters.length === 0 ? (
+                  <DropdownMenuItem disabled>Noch keine gespeichert</DropdownMenuItem>
+                ) : (
+                  characters.map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onSelect={(e) => e.preventDefault()}
+                      className="flex items-center gap-2"
+                    >
+                      <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)}>
+                        {c.name || "Unnamed"}
+                      </button>
+                      <button
+                        className="text-destructive opacity-70 hover:opacity-100"
+                        onClick={() => removeFromDb(c)}
+                        title="Löschen"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        }
+      />
+      <div className="border-b border-border/60 bg-background/40">
+        <div className="max-w-6xl mx-auto px-6 py-2 flex items-center justify-end gap-2 flex-wrap">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".png,.json,image/png,application/json"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+            <Upload className="h-4 w-4" /> Load
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { setCharId(null); newCard(); }}>New</Button>
+          <Separator orientation="vertical" className="h-6" />
+          {session ? (
+            <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
+              <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
+            </Button>
+          ) : (
+            <Button variant="default" size="sm" onClick={signInWithGoogle}>
+              Anmelden zum Speichern
+            </Button>
+          )}
+          <Separator orientation="vertical" className="h-6" />
+          <Button variant="outline" size="sm" onClick={exportJson} disabled={!card}>
+            <FileJson className="h-4 w-4" /> JSON
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
+            <Download className="h-4 w-4" /> PNG
+          </Button>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
