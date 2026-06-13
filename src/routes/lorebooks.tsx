@@ -43,6 +43,7 @@ function LorebooksPage() {
   const session = useSession();
   const [book, setBook] = useState<Lorebook>(() => emptyLorebook());
   const [selectedUid, setSelectedUid] = useState<number | null>(null);
+  const [docId, setDocId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const entries = useMemo(
