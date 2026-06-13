@@ -374,28 +374,37 @@ function Editor({ session }: { session: Session | null }) {
                 </Card>
               </>
             )}
-            <Card className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
-                <span className="text-xs text-muted-foreground">{characters.length}</span>
-              </div>
-              {characters.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
-              ) : (
-                <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
-                  {characters.map((c) => (
-                    <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
-                      <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
-                        {c.name || "Unnamed"}
-                      </button>
-                      <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+            {session ? (
+              <Card className="p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
+                  <span className="text-xs text-muted-foreground">{characters.length}</span>
+                </div>
+                {characters.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
+                ) : (
+                  <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
+                    {characters.map((c) => (
+                      <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
+                        <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
+                          {c.name || "Unnamed"}
+                        </button>
+                        <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            ) : (
+              <Card className="p-3 space-y-2 text-xs">
+                <Label className="text-xs font-semibold">Speichern & Fortsetzen</Label>
+                <p className="text-muted-foreground">Melde dich an, um deine Charaktere in der Cloud zu speichern.</p>
+                <Button size="sm" className="w-full" onClick={signInWithGoogle}>Mit Google anmelden</Button>
+              </Card>
+            )}
+
           </aside>
 
           <section>
