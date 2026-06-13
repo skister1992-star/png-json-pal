@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LorebooksRouteImport } from './routes/lorebooks'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as IndexRouteImport } from './routes/index'
 
+const LorebooksRoute = LorebooksRouteImport.update({
+  id: '/lorebooks',
+  path: '/lorebooks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/lorebooks': typeof LorebooksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/lorebooks': typeof LorebooksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/lorebooks': typeof LorebooksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor'
+  fullPaths: '/' | '/editor' | '/lorebooks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor'
-  id: '__root__' | '/' | '/editor'
+  to: '/' | '/editor' | '/lorebooks'
+  id: '__root__' | '/' | '/editor' | '/lorebooks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditorRoute: typeof EditorRoute
+  LorebooksRoute: typeof LorebooksRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/lorebooks': {
+      id: '/lorebooks'
+      path: '/lorebooks'
+      fullPath: '/lorebooks'
+      preLoaderRoute: typeof LorebooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editor': {
       id: '/editor'
       path: '/editor'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditorRoute: EditorRoute,
+  LorebooksRoute: LorebooksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
