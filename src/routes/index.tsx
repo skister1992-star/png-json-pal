@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { extractCharaJson, embedCharaJson } from "@/lib/png-chara";
 import { TraitPicker, extractBracket, upsertBracket } from "@/components/TraitPicker";
+import { ClothingPicker } from "@/components/ClothingPicker";
 import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
 import { APPEARANCE_GROUPS } from "@/lib/appearance-traits";
 import { Download, Upload, FileJson, ImageIcon, Plus, Trash2 } from "lucide-react";
@@ -320,6 +321,11 @@ function Editor() {
                       value={data.personality ?? ""}
                       onChange={(v) => update(["personality"], v)}
                       groups={APPEARANCE_GROUPS}
+                    />
+                    <ClothingPicker
+                      characterName={data.name ?? ""}
+                      value={data.personality ?? ""}
+                      onChange={(v) => update(["personality"], v)}
                     />
                     <BracketTextField
                       label="Geschlecht"
