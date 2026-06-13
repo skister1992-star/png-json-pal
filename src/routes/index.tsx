@@ -412,7 +412,6 @@ function Editor() {
               <>
 
 
-            <section>
               <div className="mb-4">
                 <Label className="text-xs text-muted-foreground">File name</Label>
                 <Input value={fileName} onChange={(e) => setFileName(e.target.value)} className="mt-1" />
