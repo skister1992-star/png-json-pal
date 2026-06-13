@@ -37,16 +37,19 @@ export const Route = createFileRoute("/")({
 
 function Page() {
   const [session, setSession] = useState<Session | null>(null);
-  const [ready, setReady] = useState(false);
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     return () => sub.subscription.unsubscribe();
   }, []);
-  if (!ready) return <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">Lädt…</div>;
-  if (!session) return <LoginScreen />;
-  return <Editor />;
+  return <Editor session={session} />;
 }
+
+async function signInWithGoogle() {
+  const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+  if (res.error) toast.error(res.error.message ?? "Login fehlgeschlagen");
+}
+
 
 function LoginScreen() {
   const [busy, setBusy] = useState(false);
