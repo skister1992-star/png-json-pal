@@ -51,9 +51,11 @@ function buildPersonality(traits: string[], _rest: string, name: string): string
 export function PersonalityTraitPicker({
   value,
   onChange,
+  characterName = "",
 }: {
   value: string;
   onChange: (v: string) => void;
+  characterName?: string;
 }) {
   const { traits, rest } = useMemo(() => parsePersonality(value ?? ""), [value]);
   const selected = new Set(traits);
@@ -65,17 +67,17 @@ export function PersonalityTraitPicker({
     const i = next.indexOf(trait);
     if (i >= 0) next.splice(i, 1);
     else next.push(trait);
-    onChange(buildPersonality(next, rest));
+    onChange(buildPersonality(next, rest, characterName));
   };
 
   const addCustom = () => {
     const t = customTrait.trim();
     if (!t || selected.has(t)) return setCustomTrait("");
-    onChange(buildPersonality([...traits, t], rest));
+    onChange(buildPersonality([...traits, t], rest, characterName));
     setCustomTrait("");
   };
 
-  const clearAll = () => onChange(buildPersonality([], rest));
+  const clearAll = () => onChange(buildPersonality([], rest, characterName));
 
   const filterLower = filter.trim().toLowerCase();
   const groups = useMemo(
