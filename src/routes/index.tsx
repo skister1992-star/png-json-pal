@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,16 @@ import { TraitPicker, extractBracket, upsertBracket } from "@/components/TraitPi
 import { ClothingPicker } from "@/components/ClothingPicker";
 import { PERSONALITY_GROUPS } from "@/lib/personality-traits";
 import { APPEARANCE_GROUPS } from "@/lib/appearance-traits";
-import { Download, Upload, FileJson, ImageIcon, Plus, Trash2 } from "lucide-react";
+import { Download, Upload, FileJson, ImageIcon, Plus, Trash2, Save, LogOut, FolderOpen } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import {
+  listCharacters, saveCharacter, deleteCharacter, downloadImage, type CharacterRow,
+} from "@/lib/character-store";
+import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Character Card Editor — PNG + JSON" },
@@ -25,8 +32,45 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Edit PNG + JSON character cards in the browser." },
     ],
   }),
-  component: Editor,
+  component: Page,
 });
+
+function Page() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  if (!ready) return <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">Lädt…</div>;
+  if (!session) return <LoginScreen />;
+  return <Editor />;
+}
+
+function LoginScreen() {
+  const [busy, setBusy] = useState(false);
+  const signIn = async () => {
+    setBusy(true);
+    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    if (res.error) { toast.error(res.error.message ?? "Login fehlgeschlagen"); setBusy(false); }
+  };
+  return (
+    <div className="min-h-screen grid place-items-center bg-background text-foreground p-6">
+      <Toaster richColors theme="dark" position="top-right" />
+      <Card className="p-8 max-w-sm w-full text-center space-y-5">
+        <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 grid place-items-center text-primary-foreground font-bold text-2xl">C</div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Character Card Editor</h1>
+          <p className="text-sm text-muted-foreground mt-1">Melde dich an, um deine Charaktere zu speichern und fortzusetzen.</p>
+        </div>
+        <Button className="w-full" onClick={signIn} disabled={busy}>
+          {busy ? "Weiterleiten…" : "Mit Google anmelden"}
+        </Button>
+      </Card>
+    </div>
+  );
+}
 
 type AnyObj = Record<string, any>;
 
@@ -44,8 +88,60 @@ function Editor() {
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("character");
+  const [charId, setCharId] = useState<string | null>(null);
+  const [characters, setCharacters] = useState<CharacterRow[]>([]);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    try { setCharacters(await listCharacters()); } catch (e: any) { toast.error(e.message); }
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const save = async () => {
+    if (!card) return;
+    setSaving(true);
+    try {
+      const row = await saveCharacter({
+        id: charId ?? undefined,
+        name: (card.data?.name ?? card.name ?? fileName) || "Unnamed",
+        data: card,
+        png: pngBytes,
+      });
+      setCharId(row.id);
+      toast.success("Gespeichert");
+      await refresh();
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const loadFromDb = async (row: CharacterRow) => {
+    setCard(row.data);
+    setCharId(row.id);
+    setFileName(row.name);
+    if (row.image_path) {
+      try {
+        const bytes = await downloadImage(row.image_path);
+        setPngBytes(bytes);
+        setImageUrl(URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/png" })));
+      } catch { setPngBytes(null); setImageUrl(null); }
+    } else { setPngBytes(null); setImageUrl(null); }
+    toast.success(`"${row.name}" geladen`);
+  };
+
+  const removeFromDb = async (row: CharacterRow) => {
+    if (!confirm(`"${row.name}" löschen?`)) return;
+    try {
+      await deleteCharacter(row);
+      if (charId === row.id) setCharId(null);
+      toast.success("Gelöscht");
+      await refresh();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const signOut = async () => { await supabase.auth.signOut(); };
+
+
 
   const data: AnyObj = useMemo(() => (card?.data ?? card ?? {}) as AnyObj, [card]);
 
@@ -225,59 +321,97 @@ function Editor() {
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
               <Upload className="h-4 w-4" /> Load
             </Button>
-            <Button variant="ghost" size="sm" onClick={newCard}>New</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setCharId(null); newCard(); }}>New</Button>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="default" size="sm" onClick={save} disabled={!card || saving}>
+              <Save className="h-4 w-4" /> {saving ? "Speichert…" : charId ? "Speichern" : "In Cloud speichern"}
+            </Button>
             <Separator orientation="vertical" className="h-6" />
             <Button variant="outline" size="sm" onClick={exportJson} disabled={!card}>
               <FileJson className="h-4 w-4" /> JSON
             </Button>
-            <Button size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
+            <Button variant="outline" size="sm" onClick={exportPng} disabled={!card || !pngBytes}>
               <Download className="h-4 w-4" /> PNG
             </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="ghost" size="sm" onClick={signOut} title="Abmelden">
+              <LogOut className="h-4 w-4" />
+            </Button>
+
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {!card ? (
-          <EmptyState onPick={() => fileRef.current?.click()} onNew={newCard} />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-            <aside className="space-y-4">
-              <Card className="overflow-hidden p-0">
-                <div className="aspect-[2/3] bg-muted relative">
-                  {imageUrl ? (
-                    <img src={imageUrl} alt="card" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
-                      <div className="text-center">
-                        <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        No image
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          <aside className="space-y-4">
+            {card && (
+              <>
+                <Card className="overflow-hidden p-0">
+                  <div className="aspect-[2/3] bg-muted relative">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt="card" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center text-muted-foreground text-sm">
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          No image
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 space-y-2">
-                  <input
-                    ref={imgRef}
-                    type="file"
-                    accept="image/png"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && replaceImage(e.target.files[0])}
-                  />
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => imgRef.current?.click()}>
-                    <ImageIcon className="h-4 w-4" /> {pngBytes ? "Replace image" : "Add PNG"}
-                  </Button>
-                  <div className="text-xs text-muted-foreground text-center truncate">{fileName}</div>
-                </div>
-              </Card>
-              <Card className="p-3 text-xs space-y-1">
-                <div className="flex justify-between"><span className="text-muted-foreground">Spec</span><Badge variant="secondary">{card.spec ?? "v1"}</Badge></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Book entries</span><span>{book.length}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Tags</span><span>{(data.tags ?? []).length}</span></div>
-              </Card>
-            </aside>
+                    )}
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <input
+                      ref={imgRef}
+                      type="file"
+                      accept="image/png"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && replaceImage(e.target.files[0])}
+                    />
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => imgRef.current?.click()}>
+                      <ImageIcon className="h-4 w-4" /> {pngBytes ? "Replace image" : "Add PNG"}
+                    </Button>
+                    <div className="text-xs text-muted-foreground text-center truncate">{fileName}</div>
+                  </div>
+                </Card>
+                <Card className="p-3 text-xs space-y-1">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Spec</span><Badge variant="secondary">{card.spec ?? "v1"}</Badge></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Book entries</span><span>{book.length}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tags</span><span>{(data.tags ?? []).length}</span></div>
+                </Card>
+              </>
+            )}
+            <Card className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1"><FolderOpen className="h-3 w-3" /> Meine Charaktere</Label>
+                <span className="text-xs text-muted-foreground">{characters.length}</span>
+              </div>
+              {characters.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Noch keine gespeichert.</p>
+              ) : (
+                <ul className="space-y-1 max-h-80 overflow-auto -mx-1">
+                  {characters.map((c) => (
+                    <li key={c.id} className={`group flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent ${charId === c.id ? "bg-accent" : ""}`}>
+                      <button className="flex-1 text-left truncate" onClick={() => loadFromDb(c)} title={c.name}>
+                        {c.name || "Unnamed"}
+                      </button>
+                      <button className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => removeFromDb(c)} title="Löschen">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </aside>
 
-            <section>
+          <section>
+            {!card ? (
+              <EmptyState onPick={() => fileRef.current?.click()} onNew={newCard} />
+            ) : (
+              <>
+
+
               <div className="mb-4">
                 <Label className="text-xs text-muted-foreground">File name</Label>
                 <Input value={fileName} onChange={(e) => setFileName(e.target.value)} className="mt-1" />
@@ -445,11 +579,13 @@ function Editor() {
                   <RawEditor card={card} onChange={setCard} />
                 </TabsContent>
               </Tabs>
-            </section>
-          </div>
-        )}
+              </>
+            )}
+          </section>
+        </div>
       </main>
     </div>
+
   );
 }
 
