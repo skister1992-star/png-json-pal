@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "SillyTavernEditor" },
+      { name: "description", content: "Edit PNG and JSON data with a character creator, lorebook, and user profile editor." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "SillyTavernEditor" },
+      { property: "og:description", content: "Edit PNG and JSON data with a character creator, lorebook, and user profile editor." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "SillyTavernEditor" },
+      { name: "twitter:description", content: "Edit PNG and JSON data with a character creator, lorebook, and user profile editor." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/51f6035b-67fa-491b-b877-ae5d8ff9e200/id-preview-1a5f2d33--6b7f6ce7-f094-4376-8274-ec51368386d6.lovable.app-1781379932678.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/51f6035b-67fa-491b-b877-ae5d8ff9e200/id-preview-1a5f2d33--6b7f6ce7-f094-4376-8274-ec51368386d6.lovable.app-1781379932678.png" },
     ],
     links: [
       {
