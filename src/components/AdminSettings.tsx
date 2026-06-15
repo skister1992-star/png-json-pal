@@ -340,6 +340,10 @@ export function AdminSettings() {
                   <Button onClick={saveCfg}>Speichern</Button>
                 </div>
               </TabsContent>
+
+              <TabsContent value="cloud" className="space-y-3 pt-4">
+                <CloudProvidersPanel token={token} />
+              </TabsContent>
             </Tabs>
           )}
 
