@@ -125,7 +125,7 @@ export function SelfHostSetup() {
 
       {/* ---------- INPUT FIELDS ---------- */}
       <Section title="Server &amp; Domain">
-        <Field label="Domain (ohne https://)" hint="z. B. app.firma.de – wird in nginx & Redirect-URIs verwendet">
+        <Field label="Domain (ohne https://)" hint="Wird automatisch aus der aktuellen URL übernommen – anpassen wenn nötig">
           <Input value={cfg.domain} onChange={(e) => set("domain", e.target.value)} />
         </Field>
         <Field label="Port" hint="Lokaler Port des Node-Servers (hinter nginx)">
