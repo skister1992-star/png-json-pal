@@ -1,8 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,40 +13,45 @@ import {
 } from "@/components/ui/dialog";
 import { LogIn, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { api, type AppUser } from "@/lib/api-client";
 
-export function useSession() {
-  const [session, setSession] = useState<Session | null>(null);
+export type AppSession = { user: AppUser } | null;
+
+let cachedSession: AppSession = null;
+const listeners = new Set<(s: AppSession) => void>();
+
+function emit(s: AppSession) {
+  cachedSession = s;
+  for (const l of listeners) l(s);
+}
+
+async function refreshSession() {
+  const user = await api.me();
+  emit(user ? { user } : null);
+}
+
+export function useSession(): AppSession {
+  const [session, setSession] = useState<AppSession>(cachedSession);
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    return () => sub.subscription.unsubscribe();
+    listeners.add(setSession);
+    void refreshSession();
+    return () => {
+      listeners.delete(setSession);
+    };
   }, []);
   return session;
 }
 
-/** Detects whether the Lovable-managed OAuth broker is available for this host. */
-function isLovableHost() {
-  if (typeof window === "undefined") return false;
-  const h = window.location.hostname;
-  return h.endsWith(".lovable.app") || h.endsWith(".lovable.dev") || h === "localhost";
-}
-
 export async function signInWithGoogle() {
   try {
-    const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (res.error) throw new Error(res.error.message ?? "Login fehlgeschlagen");
-    if (res.redirected) return;
-  } catch (e: unknown) {
-    // Fallback: direct Supabase OAuth (works on self-hosted domains, requires Google
-    // provider configured directly in the backend with this domain whitelisted).
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) toast.error(error.message);
-    else if (e instanceof Error && e.message) toast.message(e.message);
+    const cfg = await api.config();
+    if (!cfg.google_login_enabled) {
+      toast.error("Google-Login ist auf diesem Server nicht konfiguriert.");
+      return;
+    }
+    api.loginWithGoogle(window.location.href);
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : "Google-Login fehlgeschlagen");
   }
 }
 
@@ -59,24 +61,25 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    api.config().then((c) => setGoogleEnabled(c.google_login_enabled)).catch(() => {});
+  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Konto erstellt. Bitte E-Mail-Postfach prüfen und den Bestätigungslink anklicken, bevor du dich einloggst.");
+        await api.register(email, password);
+        toast.success("Konto erstellt und angemeldet.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await api.login(email, password);
         toast.success("Eingeloggt");
       }
+      await refreshSession();
       setOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login fehlgeschlagen");
@@ -98,31 +101,25 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
         <DialogHeader>
           <DialogTitle>{mode === "signin" ? "Anmelden" : "Konto erstellen"}</DialogTitle>
           <DialogDescription>
-            Mit Google oder E-Mail anmelden. E-Mail funktioniert auch beim Self-Hosting auf einer eigenen Domain.
+            Mit E-Mail/Passwort oder Google anmelden. Alle Konten liegen auf deinem eigenen Server.
           </DialogDescription>
         </DialogHeader>
 
-        <Button
-          variant="outline"
-          onClick={async () => {
-            await signInWithGoogle();
-            setOpen(false);
-          }}
-        >
-          Mit Google fortfahren
-        </Button>
-        {!isLovableHost() && (
-          <p className="text-xs text-muted-foreground -mt-2">
-            Hinweis: Google-Login auf eigener Domain erfordert eigene Google-OAuth-Konfiguration im Backend.
-          </p>
+        {googleEnabled && (
+          <>
+            <Button variant="outline" onClick={signInWithGoogle}>
+              Mit Google fortfahren
+            </Button>
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">oder</span>
+              </div>
+            </div>
+          </>
         )}
-
-        <div className="relative my-2">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">oder</span>
-          </div>
-        </div>
 
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">
@@ -153,9 +150,17 @@ export function SiteHeader({
   session,
   rightSlot,
 }: {
-  session: Session | null;
+  session: AppSession;
   rightSlot?: ReactNode;
 }) {
+  async function doLogout() {
+    try {
+      await api.logout();
+    } catch {
+      /* noop */
+    }
+    await refreshSession();
+  }
   return (
     <header className="border-b border-border/60 backdrop-blur sticky top-0 z-10 bg-background/80">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
@@ -171,7 +176,7 @@ export function SiteHeader({
         <div className="flex items-center gap-2">
           {rightSlot}
           {session ? (
-            <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
+            <Button variant="ghost" size="sm" onClick={doLogout}>
               <LogOut className="h-4 w-4" /> Logout
             </Button>
           ) : (
