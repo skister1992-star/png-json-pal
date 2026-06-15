@@ -302,7 +302,14 @@ function GoogleOAuthPanel() {
   useEffect(() => {
     void api.admin
       .getOAuth()
-      .then((c) => setCfg((prev) => ({ ...prev, ...c })))
+      .then((c) =>
+        setCfg((prev) => ({
+          ...prev,
+          ...(c.google_client_id ? { google_client_id: c.google_client_id } : {}),
+          ...(c.google_client_secret ? { google_client_secret: c.google_client_secret } : {}),
+          ...(c.google_redirect_uri ? { google_redirect_uri: c.google_redirect_uri } : {}),
+        })),
+      )
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
