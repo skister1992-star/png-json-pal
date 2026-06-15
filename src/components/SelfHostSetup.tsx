@@ -1,0 +1,389 @@
+import { useMemo, useState } from "react";
+import { Copy, RefreshCw, FileText, Terminal, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
+type Cfg = {
+  domain: string;
+  port: string;
+  jwtSecret: string;
+  dbPath: string;
+  frontendDist: string;
+  adminPassword: string;
+  googleClientId: string;
+  googleClientSecret: string;
+  googleRedirectUri: string;
+  appUser: string;
+  appDir: string;
+  nodeBin: string;
+};
+
+function randomHex(bytes = 32): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function copy(text: string, label: string) {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success(`${label} kopiert`),
+    () => toast.error("Kopieren fehlgeschlagen"),
+  );
+}
+
+export function SelfHostSetup() {
+  const [cfg, setCfg] = useState<Cfg>(() => ({
+    domain: "meine-domain.de",
+    port: "3000",
+    jwtSecret: randomHex(32),
+    dbPath: "./data/app.db",
+    frontendDist: "../dist",
+    adminPassword: "root",
+    googleClientId: "",
+    googleClientSecret: "",
+    googleRedirectUri: "https://meine-domain.de/api/auth/google/callback",
+    appUser: "app",
+    appDir: "/opt/png-json-pal",
+    nodeBin: "/usr/bin/node",
+  }));
+
+  const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setCfg((p) => ({ ...p, [k]: v }));
+
+  const files = useMemo(() => buildFiles(cfg), [cfg]);
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
+        <Info className="h-4 w-4 shrink-0 mt-0.5" />
+        <div>
+          Trage die Werte ein. Unten findest du fertige Dateien zum Kopieren. Ein direkter
+          SSH-Zugriff aus dem Browser ist aus Sicherheitsgründen nicht möglich –
+          die generierten Shell-Befehle kannst du per Copy &amp; Paste in deiner
+          SSH-Session auf dem Server ausführen.
+        </div>
+      </div>
+
+      {/* ---------- INPUT FIELDS ---------- */}
+      <Section title="Server &amp; Domain">
+        <Field label="Domain (ohne https://)" hint="z. B. app.firma.de – wird in nginx & Redirect-URIs verwendet">
+          <Input value={cfg.domain} onChange={(e) => set("domain", e.target.value)} />
+        </Field>
+        <Field label="Port" hint="Lokaler Port des Node-Servers (hinter nginx)">
+          <Input value={cfg.port} onChange={(e) => set("port", e.target.value)} />
+        </Field>
+        <Field label="System-User" hint="Linux-User, unter dem der Service läuft">
+          <Input value={cfg.appUser} onChange={(e) => set("appUser", e.target.value)} />
+        </Field>
+        <Field label="Installations-Verzeichnis" hint="Absoluter Pfad zur App auf dem Server">
+          <Input value={cfg.appDir} onChange={(e) => set("appDir", e.target.value)} />
+        </Field>
+        <Field label="Pfad zu node" hint="`which node` auf dem Server">
+          <Input value={cfg.nodeBin} onChange={(e) => set("nodeBin", e.target.value)} />
+        </Field>
+      </Section>
+
+      <Section title=".env (Secrets &amp; Pfade)">
+        <Field
+          label="JWT_SECRET"
+          hint="Zufalls-Schlüssel für Sessions. Niemals teilen."
+          action={
+            <Button size="sm" variant="outline" onClick={() => set("jwtSecret", randomHex(32))}>
+              <RefreshCw className="h-3.5 w-3.5" /> Neu erzeugen
+            </Button>
+          }
+        >
+          <Input value={cfg.jwtSecret} onChange={(e) => set("jwtSecret", e.target.value)} className="font-mono text-xs" />
+        </Field>
+        <Field label="DB_PATH" hint="Wo die SQLite-Datei abgelegt wird (wird automatisch erstellt)">
+          <Input value={cfg.dbPath} onChange={(e) => set("dbPath", e.target.value)} />
+        </Field>
+        <Field label="FRONTEND_DIST" hint="Pfad zum gebauten Frontend (Vite `dist/`)">
+          <Input value={cfg.frontendDist} onChange={(e) => set("frontendDist", e.target.value)} />
+        </Field>
+        <Field label="Initiales Admin-Passwort" hint="Nach erstem Login im Admin-Bereich ändern">
+          <Input value={cfg.adminPassword} onChange={(e) => set("adminPassword", e.target.value)} />
+        </Field>
+      </Section>
+
+      <Section title="Google OAuth (optional)">
+        <Field label="GOOGLE_CLIENT_ID" hint="Aus Google Cloud Console → Credentials">
+          <Input
+            placeholder="xxxxx.apps.googleusercontent.com"
+            value={cfg.googleClientId}
+            onChange={(e) => set("googleClientId", e.target.value)}
+          />
+        </Field>
+        <Field label="GOOGLE_CLIENT_SECRET" hint="Aus dem gleichen OAuth-Client">
+          <Input
+            type="password"
+            value={cfg.googleClientSecret}
+            onChange={(e) => set("googleClientSecret", e.target.value)}
+          />
+        </Field>
+        <Field label="GOOGLE_REDIRECT_URI" hint="Genau so in Google eintragen (Authorized redirect URIs)">
+          <Input
+            value={cfg.googleRedirectUri}
+            onChange={(e) => set("googleRedirectUri", e.target.value)}
+          />
+        </Field>
+      </Section>
+
+      {/* ---------- OUTPUT FILES ---------- */}
+      <div className="space-y-4 pt-2 border-t">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <FileText className="h-4 w-4" /> Generierte Dateien &amp; Befehle
+        </h3>
+        {files.map((f) => (
+          <FileBlock key={f.path} title={f.path} description={f.description} content={f.content} icon={f.icon} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold" dangerouslySetInnerHTML={{ __html: title }} />
+      <div className="space-y-3 pl-1">{children}</div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+  action,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs">{label}</Label>
+        {action}
+      </div>
+      {children}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function FileBlock({
+  title,
+  description,
+  content,
+  icon,
+}: {
+  title: string;
+  description: string;
+  content: string;
+  icon: "file" | "shell";
+}) {
+  return (
+    <div className="border rounded-md overflow-hidden">
+      <div className="flex items-center justify-between bg-muted/40 px-3 py-2 border-b">
+        <div className="flex items-center gap-2 min-w-0">
+          {icon === "shell" ? (
+            <Terminal className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <div className="min-w-0">
+            <div className="text-sm font-mono truncate">{title}</div>
+            <div className="text-[11px] text-muted-foreground truncate">{description}</div>
+          </div>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => copy(content, title)}>
+          <Copy className="h-3.5 w-3.5" /> Kopieren
+        </Button>
+      </div>
+      <Textarea
+        readOnly
+        value={content}
+        className="font-mono text-xs rounded-none border-0 min-h-[160px] resize-y bg-background"
+      />
+    </div>
+  );
+}
+
+// ------------ FILE BUILDERS ------------
+
+function buildFiles(c: Cfg) {
+  const envContent = `# server/.env
+JWT_SECRET=${c.jwtSecret}
+PORT=${c.port}
+DB_PATH=${c.dbPath}
+FRONTEND_DIST=${c.frontendDist}
+ADMIN_INITIAL_PASSWORD=${c.adminPassword}
+${c.googleClientId ? `GOOGLE_CLIENT_ID=${c.googleClientId}` : "# GOOGLE_CLIENT_ID="}
+${c.googleClientSecret ? `GOOGLE_CLIENT_SECRET=${c.googleClientSecret}` : "# GOOGLE_CLIENT_SECRET="}
+GOOGLE_REDIRECT_URI=${c.googleRedirectUri}
+`;
+
+  const systemdContent = `# /etc/systemd/system/png-json-pal.service
+[Unit]
+Description=PNG JSON Pal (Node + SQLite)
+After=network.target
+
+[Service]
+Type=simple
+User=${c.appUser}
+WorkingDirectory=${c.appDir}/server
+EnvironmentFile=${c.appDir}/server/.env
+ExecStart=${c.nodeBin} dist/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+  const nginxContent = `# /etc/nginx/sites-available/${c.domain}
+server {
+  listen 80;
+  server_name ${c.domain};
+
+  # → certbot --nginx -d ${c.domain}  übernimmt die TLS-Konfiguration
+
+  client_max_body_size 50M;
+
+  location / {
+    proxy_pass http://127.0.0.1:${c.port};
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        "upgrade";
+  }
+}
+`;
+
+  const installScript = `#!/usr/bin/env bash
+# install.sh – auf dem Server als root ausführen
+set -euo pipefail
+
+APP_DIR="${c.appDir}"
+APP_USER="${c.appUser}"
+DOMAIN="${c.domain}"
+
+# 1) System vorbereiten
+apt-get update
+apt-get install -y nginx git curl build-essential
+# Node 20 (NodeSource):
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+
+# 2) User & Verzeichnis
+id "$APP_USER" &>/dev/null || useradd -m -s /bin/bash "$APP_USER"
+mkdir -p "$APP_DIR"
+chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
+
+# 3) Code holen (anpassen: dein Git-Remote)
+sudo -u "$APP_USER" git clone <DEIN_GIT_REMOTE> "$APP_DIR" || true
+
+# 4) Frontend bauen
+cd "$APP_DIR"
+sudo -u "$APP_USER" npm ci
+sudo -u "$APP_USER" npm run build
+
+# 5) Server bauen
+cd "$APP_DIR/server"
+sudo -u "$APP_USER" npm ci
+sudo -u "$APP_USER" npm run build
+
+# 6) .env eintragen (Inhalt siehe Admin-UI → Datei: server/.env)
+#    nano "$APP_DIR/server/.env"
+
+# 7) systemd-Service installieren
+cp png-json-pal.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now png-json-pal
+
+# 8) nginx
+cp nginx-${c.domain}.conf /etc/nginx/sites-available/${c.domain}
+ln -sf /etc/nginx/sites-available/${c.domain} /etc/nginx/sites-enabled/${c.domain}
+nginx -t && systemctl reload nginx
+
+# 9) TLS
+# apt-get install -y certbot python3-certbot-nginx
+# certbot --nginx -d ${c.domain}
+
+echo "Fertig. App läuft unter http://${c.domain}"
+`;
+
+  const updateScript = `#!/usr/bin/env bash
+# update.sh – Update einer bestehenden Installation
+set -euo pipefail
+cd ${c.appDir}
+sudo -u ${c.appUser} git pull --ff-only
+sudo -u ${c.appUser} npm ci
+sudo -u ${c.appUser} npm run build
+cd server
+sudo -u ${c.appUser} npm ci
+sudo -u ${c.appUser} npm run build
+systemctl restart png-json-pal
+systemctl status --no-pager png-json-pal
+`;
+
+  const backupScript = `#!/usr/bin/env bash
+# backup.sh – tägliches Backup der SQLite-DB
+set -euo pipefail
+STAMP=$(date +%Y%m%d-%H%M%S)
+DEST=${c.appDir}/backups
+mkdir -p "$DEST"
+sqlite3 "${c.appDir}/server/${c.dbPath.replace(/^\.\//, "")}" ".backup '$DEST/app-$STAMP.db'"
+find "$DEST" -name 'app-*.db' -mtime +30 -delete
+`;
+
+  return [
+    {
+      path: "server/.env",
+      description: "Secrets & Laufzeit-Pfade. Niemals in Git einchecken.",
+      content: envContent,
+      icon: "file" as const,
+    },
+    {
+      path: "/etc/systemd/system/png-json-pal.service",
+      description: "systemd Service-Definition (Autostart, Restart on failure).",
+      content: systemdContent,
+      icon: "file" as const,
+    },
+    {
+      path: `/etc/nginx/sites-available/${c.domain}`,
+      description: "nginx Reverse Proxy auf den Node-Port.",
+      content: nginxContent,
+      icon: "file" as const,
+    },
+    {
+      path: "install.sh",
+      description: "Einmaliges Setup auf einem frischen Ubuntu/Debian-Server.",
+      content: installScript,
+      icon: "shell" as const,
+    },
+    {
+      path: "update.sh",
+      description: "Update + Neustart des Services.",
+      content: updateScript,
+      icon: "shell" as const,
+    },
+    {
+      path: "backup.sh",
+      description: "DB-Backup (täglich per cron empfohlen).",
+      content: backupScript,
+      icon: "shell" as const,
+    },
+  ];
+}
