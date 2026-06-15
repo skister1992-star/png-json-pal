@@ -23,8 +23,7 @@ import {
 import {
   listCharacters, saveCharacter, deleteCharacter, downloadImage, type CharacterRow,
 } from "@/lib/character-store";
-import type { Session } from "@supabase/supabase-js";
-import { SiteHeader, useSession, signInWithGoogle } from "@/components/SiteHeader";
+import { SiteHeader, useSession, signInWithGoogle, type AppSession } from "@/components/SiteHeader";
 
 export const Route = createFileRoute("/editor")({
   ssr: false,
@@ -56,7 +55,7 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Editor({ session }: { session: Session | null }) {
+function Editor({ session }: { session: AppSession }) {
 
   const [card, setCard] = useState<AnyObj | null>(null);
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);

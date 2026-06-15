@@ -11,11 +11,10 @@ import {
 import { Cloud, FolderOpen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteDoc, listDocs, saveDoc, type DocRow } from "@/lib/doc-store";
-import { signInWithGoogle } from "@/components/SiteHeader";
-import type { Session } from "@supabase/supabase-js";
+import { signInWithGoogle, type AppSession } from "@/components/SiteHeader";
 
 type Props<T> = {
-  session: Session | null;
+  session: AppSession;
   table: "lorebooks" | "user_cards";
   label: string;
   currentId: string | null;
@@ -52,7 +51,7 @@ export function CloudDocsMenu<T>({
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user.id]);
+  }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onSave() {
     if (!session) {
