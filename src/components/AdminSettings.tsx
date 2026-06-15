@@ -264,6 +264,7 @@ export function AdminSettings() {
               </TabsContent>
 
               <TabsContent value="backend" className="space-y-3 pt-4">
+                <ServerEnvPanel />
                 <p className="text-xs text-muted-foreground">
                   Nach dem Export auf deinen Server: trage hier die Verbindungsdaten deiner
                   eigenen Supabase-Instanz ein. Diese Werte musst du außerdem in deiner
