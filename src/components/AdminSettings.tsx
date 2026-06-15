@@ -50,7 +50,6 @@ type SelfHostConfig = {
   supabaseUrl: string;
   supabaseAnonKey: string;
   googleClientId: string;
-  googleClientSecret: string;
   siteUrl: string;
   redirectUrls: string;
 };
@@ -59,7 +58,6 @@ const EMPTY: SelfHostConfig = {
   supabaseUrl: "",
   supabaseAnonKey: "",
   googleClientId: "",
-  googleClientSecret: "",
   siteUrl: typeof window !== "undefined" ? window.location.origin : "",
   redirectUrls: "",
 };
@@ -68,7 +66,14 @@ function loadCfg(): SelfHostConfig {
   if (typeof window === "undefined") return EMPTY;
   try {
     const raw = localStorage.getItem(CFG_KEY);
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
+    if (!raw) return EMPTY;
+    const parsed = JSON.parse(raw);
+    // Purge legacy secret if previously stored
+    if (parsed && typeof parsed === "object" && "googleClientSecret" in parsed) {
+      delete parsed.googleClientSecret;
+      try { localStorage.setItem(CFG_KEY, JSON.stringify(parsed)); } catch { /* noop */ }
+    }
+    return { ...EMPTY, ...parsed };
   } catch {
     return EMPTY;
   }
