@@ -372,3 +372,37 @@ function GoogleOAuthPanel() {
     </div>
   );
 }
+
+// ----------------- SERVER STATUS -----------------
+
+function ServerStatus() {
+  const [status, setStatus] = useState<"online" | "offline" | "demo" | "checking">("checking");
+
+  useEffect(() => {
+    setStatus("checking");
+    api.health().then((h) => {
+      if (h?.demo) setStatus("demo");
+      else if (h?.ok) setStatus("online");
+      else setStatus("offline");
+    }).catch(() => setStatus("offline"));
+  }, []);
+
+  const configs = {
+    online: { label: "Server online", dot: "bg-green-500", iconColor: "text-green-600" },
+    offline: { label: "Server offline", dot: "bg-red-500", iconColor: "text-red-600" },
+    demo: { label: "Demo-Modus (kein Server)", dot: "bg-amber-500", iconColor: "text-amber-600" },
+    checking: { label: "Prüfe…", dot: "bg-muted-foreground", iconColor: "text-muted-foreground" },
+  };
+  const c = configs[status];
+
+  return (
+    <div className="flex items-center gap-2 text-xs shrink-0">
+      <Server className={`h-4 w-4 ${c.iconColor}`} />
+      <span className="text-muted-foreground hidden sm:inline">{c.label}</span>
+      <span className={`h-2 w-2 rounded-full ${c.dot} ${status === "checking" ? "animate-pulse" : ""}`} />
+    </div>
+  );
+}
+    </div>
+  );
+}
