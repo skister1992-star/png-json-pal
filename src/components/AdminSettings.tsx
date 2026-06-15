@@ -117,12 +117,6 @@ export function AdminSettings() {
 
   const loginFn = useServerFn(adminLogin);
   const logoutFn = useServerFn(adminLogout);
-  const changePassFn = useServerFn(adminChangePassword);
-  const listFn = useServerFn(adminListUsers);
-  const getUserFn = useServerFn(adminGetUser);
-  const delUserFn = useServerFn(adminDeleteUser);
-  const banFn = useServerFn(adminBanUser);
-  const resetFn = useServerFn(adminSendPasswordReset);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -219,15 +213,7 @@ export function AdminSettings() {
               </TabsList>
 
               <TabsContent value="users" className="pt-4">
-                <UsersPanel
-                  listFn={listFn}
-                  getUserFn={getUserFn}
-                  delUserFn={delUserFn}
-                  banFn={banFn}
-                  resetFn={resetFn}
-                  token={token}
-                  onAuthLost={logout}
-                />
+                <UsersPanel token={token} onAuthLost={logout} />
               </TabsContent>
 
               <TabsContent value="storage" className="pt-4 space-y-3">
