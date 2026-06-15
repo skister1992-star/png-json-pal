@@ -50,7 +50,6 @@ type SelfHostConfig = {
   supabaseUrl: string;
   supabaseAnonKey: string;
   googleClientId: string;
-  googleClientSecret: string;
   siteUrl: string;
   redirectUrls: string;
 };
@@ -59,7 +58,6 @@ const EMPTY: SelfHostConfig = {
   supabaseUrl: "",
   supabaseAnonKey: "",
   googleClientId: "",
-  googleClientSecret: "",
   siteUrl: typeof window !== "undefined" ? window.location.origin : "",
   redirectUrls: "",
 };
@@ -68,7 +66,14 @@ function loadCfg(): SelfHostConfig {
   if (typeof window === "undefined") return EMPTY;
   try {
     const raw = localStorage.getItem(CFG_KEY);
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY;
+    if (!raw) return EMPTY;
+    const parsed = JSON.parse(raw);
+    // Purge legacy secret if previously stored
+    if (parsed && typeof parsed === "object" && "googleClientSecret" in parsed) {
+      delete parsed.googleClientSecret;
+      try { localStorage.setItem(CFG_KEY, JSON.stringify(parsed)); } catch { /* noop */ }
+    }
+    return { ...EMPTY, ...parsed };
   } catch {
     return EMPTY;
   }
@@ -198,15 +203,11 @@ export function AdminSettings() {
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
                   autoComplete="off"
-                  placeholder="Standard: admin:root"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loggingIn}>
                 {loggingIn ? "Wird geprüft…" : "Anmelden"}
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Standardpasswort beim ersten Login: <code>admin:root</code> — bitte sofort ändern.
-              </p>
             </form>
           ) : (
             <Tabs defaultValue="users">
@@ -323,18 +324,11 @@ export function AdminSettings() {
                     onChange={(e) => setCfg({ ...cfg, googleClientId: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Google Client Secret</Label>
-                  <Input
-                    type="password"
-                    placeholder="GOCSPX-..."
-                    value={cfg.googleClientSecret}
-                    onChange={(e) => setCfg({ ...cfg, googleClientSecret: e.target.value })}
-                  />
-                </div>
                 <p className="text-xs text-muted-foreground">
-                  Diese Werte müssen anschließend im eigenen Supabase-Projekt unter
-                  <em> Authentication → Providers → Google</em> hinterlegt werden.
+                  Die <strong>Client ID</strong> ist öffentlich und darf hier gespeichert werden.
+                  Das <strong>Client Secret</strong> wird ausschließlich direkt im eigenen
+                  Supabase-Projekt unter <em>Authentication → Providers → Google</em> hinterlegt –
+                  niemals im Browser.
                 </p>
                 <div className="flex justify-end">
                   <Button onClick={saveCfg}>Speichern</Button>
