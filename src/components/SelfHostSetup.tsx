@@ -68,7 +68,12 @@ export function SelfHostSetup() {
     if (typeof window === "undefined") return defaultCfg();
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return { ...defaultCfg(), ...JSON.parse(raw) };
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<Cfg>;
+        // Domain immer frisch vom aktuellen Host erkennen (Preview / Prod / localhost)
+        const freshDomain = detectDomain();
+        return { ...defaultCfg(), ...saved, domain: freshDomain };
+      }
     } catch {}
     return defaultCfg();
   });
