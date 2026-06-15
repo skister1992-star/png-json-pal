@@ -271,7 +271,7 @@ export function AdminSettings() {
               </TabsContent>
 
               <TabsContent value="password" className="pt-4 space-y-3">
-                <PasswordPanel token={token} changeFn={changePassFn} />
+                <PasswordPanel token={token} />
               </TabsContent>
 
               <TabsContent value="backend" className="space-y-3 pt-4">
