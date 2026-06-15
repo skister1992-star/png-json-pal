@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getStorageMode } from "./storage-mode";
 
 type TableName = "lorebooks" | "user_cards";
 
@@ -9,7 +10,34 @@ export type DocRow = {
   updated_at: string;
 };
 
+// ---------- Local (browser) backend ----------
+const LOCAL_PREFIX = "localdocs_v1:";
+const lkey = (t: TableName) => LOCAL_PREFIX + t;
+
+function readLocal(table: TableName): DocRow[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(lkey(table));
+    return raw ? (JSON.parse(raw) as DocRow[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocal(table: TableName, rows: DocRow[]) {
+  localStorage.setItem(lkey(table), JSON.stringify(rows));
+}
+
+function uuid() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return "loc_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ---------- Public API ----------
 export async function listDocs(table: TableName): Promise<DocRow[]> {
+  if (getStorageMode() === "local") {
+    return readLocal(table).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+  }
   const { data, error } = await supabase
     .from(table)
     .select("id, name, data, updated_at")
@@ -24,6 +52,23 @@ export async function saveDoc(
   name: string,
   data: unknown,
 ): Promise<DocRow> {
+  if (getStorageMode() === "local") {
+    const rows = readLocal(table);
+    const now = new Date().toISOString();
+    if (id) {
+      const idx = rows.findIndex((r) => r.id === id);
+      const row: DocRow = { id, name, data, updated_at: now };
+      if (idx >= 0) rows[idx] = row;
+      else rows.push(row);
+      writeLocal(table, rows);
+      return row;
+    }
+    const row: DocRow = { id: uuid(), name, data, updated_at: now };
+    rows.push(row);
+    writeLocal(table, rows);
+    return row;
+  }
+
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes.user;
   if (!user) throw new Error("Nicht eingeloggt");
@@ -47,6 +92,10 @@ export async function saveDoc(
 }
 
 export async function deleteDoc(table: TableName, id: string) {
+  if (getStorageMode() === "local") {
+    writeLocal(table, readLocal(table).filter((r) => r.id !== id));
+    return;
+  }
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) throw error;
 }
