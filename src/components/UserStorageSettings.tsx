@@ -56,6 +56,11 @@ export function UserStorageSettings() {
   const [testing, setTesting] = useState(false);
   const [connecting, setConnecting] = useState<ProviderId | null>(null);
   const [tick, setTick] = useState(0); // re-render when auth changes
+  const [appCfg, setAppCfg] = useState<{
+    google: boolean;
+    onedrive: boolean;
+    dropbox: boolean;
+  }>({ google: false, onedrive: false, dropbox: false });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -73,7 +78,13 @@ export function UserStorageSettings() {
     setMode(getStorageMode());
     setCfg(getCustomCloudConfig());
     setDav(getWebDAVConfig());
-    void loadOAuthAppConfig(); // warm cache
+    loadOAuthAppConfig().then((c) => {
+      setAppCfg({
+        google: !!c.google_client_id,
+        onedrive: !!c.microsoft_client_id,
+        dropbox: !!c.dropbox_app_key,
+      });
+    });
   }, [open]);
 
   if (!session) return null;
@@ -169,38 +180,44 @@ export function UserStorageSettings() {
               desc="Daten bleiben nur in diesem Browser. Kein Upload, kein Sync."
             />
 
-            <ProviderRow
-              checked={mode === "gdrive"}
-              onSelect={() => applyMode("gdrive")}
-              title="Google Drive"
-              desc="Speichert verschlüsselt im versteckten App-Ordner deines Google Drive."
-              connected={gConnected}
-              busy={connecting === "gdrive"}
-              onConnect={() => doConnect("gdrive")}
-              onDisconnect={() => doDisconnect("gdrive")}
-            />
+            {appCfg.google && (
+              <ProviderRow
+                checked={mode === "gdrive"}
+                onSelect={() => applyMode("gdrive")}
+                title="Google Drive"
+                desc="Speichert verschlüsselt im versteckten App-Ordner deines Google Drive."
+                connected={gConnected}
+                busy={connecting === "gdrive"}
+                onConnect={() => doConnect("gdrive")}
+                onDisconnect={() => doDisconnect("gdrive")}
+              />
+            )}
 
-            <ProviderRow
-              checked={mode === "onedrive"}
-              onSelect={() => applyMode("onedrive")}
-              title="Microsoft OneDrive"
-              desc="Speichert im App-Ordner deines persönlichen OneDrive."
-              connected={mConnected}
-              busy={connecting === "onedrive"}
-              onConnect={() => doConnect("onedrive")}
-              onDisconnect={() => doDisconnect("onedrive")}
-            />
+            {appCfg.onedrive && (
+              <ProviderRow
+                checked={mode === "onedrive"}
+                onSelect={() => applyMode("onedrive")}
+                title="Microsoft OneDrive"
+                desc="Speichert im App-Ordner deines persönlichen OneDrive."
+                connected={mConnected}
+                busy={connecting === "onedrive"}
+                onConnect={() => doConnect("onedrive")}
+                onDisconnect={() => doDisconnect("onedrive")}
+              />
+            )}
 
-            <ProviderRow
-              checked={mode === "dropbox"}
-              onSelect={() => applyMode("dropbox")}
-              title="Dropbox"
-              desc="Speichert im App-Ordner deiner Dropbox (Apps/…)."
-              connected={dConnected}
-              busy={connecting === "dropbox"}
-              onConnect={() => doConnect("dropbox")}
-              onDisconnect={() => doDisconnect("dropbox")}
-            />
+            {appCfg.dropbox && (
+              <ProviderRow
+                checked={mode === "dropbox"}
+                onSelect={() => applyMode("dropbox")}
+                title="Dropbox"
+                desc="Speichert im App-Ordner deiner Dropbox (Apps/…)."
+                connected={dConnected}
+                busy={connecting === "dropbox"}
+                onConnect={() => doConnect("dropbox")}
+                onDisconnect={() => doDisconnect("dropbox")}
+              />
+            )}
 
             <ModeRow
               checked={mode === "webdav"}
