@@ -122,7 +122,7 @@ async function tryReq<T>(path: string, init: RequestInit, demo: () => Promise<T>
   try {
     return await req<T>(path, init);
   } catch (e) {
-    if ((e as Error).message === "__NO_BACKEND__" || backendAvailable === false) {
+    if ((e as Error).message === "__NO_BACKEND__" || !backendAvailable) {
       return await demo();
     }
     throw e;
