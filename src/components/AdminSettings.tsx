@@ -35,6 +35,7 @@ import {
   adminBanUser,
   adminSendPasswordReset,
   adminSetOAuthConfig,
+  adminEnvCheck,
 } from "@/lib/admin.functions";
 import { getStorageMode, setStorageMode, type StorageMode } from "@/lib/storage-mode";
 import {
