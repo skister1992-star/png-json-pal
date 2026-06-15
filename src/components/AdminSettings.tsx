@@ -586,13 +586,8 @@ function UsersPanel({
 
 // ----------------- PASSWORD PANEL -----------------
 
-function PasswordPanel({
-  token,
-  changeFn,
-}: {
-  token: string;
-  changeFn: ReturnType<typeof useServerFn<typeof adminChangePassword>>;
-}) {
+function PasswordPanel({ token }: { token: string }) {
+  const changeFn = useServerFn(adminChangePassword);
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [busy, setBusy] = useState(false);
