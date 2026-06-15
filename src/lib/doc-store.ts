@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getStorageMode } from "./storage-mode";
+import { getCustomSupabase } from "./custom-supabase";
 
 type TableName = "lorebooks" | "user_cards";
 
@@ -33,12 +34,19 @@ function uuid() {
   return "loc_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+async function activeSupabase() {
+  const mode = getStorageMode();
+  if (mode === "custom") return await getCustomSupabase();
+  return supabase;
+}
+
 // ---------- Public API ----------
 export async function listDocs(table: TableName): Promise<DocRow[]> {
   if (getStorageMode() === "local") {
     return readLocal(table).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   }
-  const { data, error } = await supabase
+  const client = await activeSupabase();
+  const { data, error } = await client
     .from(table)
     .select("id, name, data, updated_at")
     .order("updated_at", { ascending: false });
@@ -69,11 +77,12 @@ export async function saveDoc(
     return row;
   }
 
-  const { data: userRes } = await supabase.auth.getUser();
+  const client = await activeSupabase();
+  const { data: userRes } = await client.auth.getUser();
   const user = userRes.user;
   if (!user) throw new Error("Nicht eingeloggt");
   if (id) {
-    const { data: row, error } = await supabase
+    const { data: row, error } = await client
       .from(table)
       .update({ name, data: data as never })
       .eq("id", id)
@@ -82,7 +91,7 @@ export async function saveDoc(
     if (error) throw error;
     return row as DocRow;
   }
-  const { data: row, error } = await supabase
+  const { data: row, error } = await client
     .from(table)
     .insert({ user_id: user.id, name, data: data as never })
     .select("id, name, data, updated_at")
@@ -96,6 +105,7 @@ export async function deleteDoc(table: TableName, id: string) {
     writeLocal(table, readLocal(table).filter((r) => r.id !== id));
     return;
   }
-  const { error } = await supabase.from(table).delete().eq("id", id);
+  const client = await activeSupabase();
+  const { error } = await client.from(table).delete().eq("id", id);
   if (error) throw error;
 }
