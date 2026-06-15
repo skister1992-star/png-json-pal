@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, RefreshCw, FileText, Terminal, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +34,21 @@ function copy(text: string, label: string) {
   );
 }
 
-export function SelfHostSetup() {
-  const [cfg, setCfg] = useState<Cfg>(() => ({
-    domain: "meine-domain.de",
+const STORAGE_KEY = "selfhost-setup-cfg-v1";
+
+function detectDomain(): string {
+  if (typeof window === "undefined") return "meine-domain.de";
+  const h = window.location.hostname;
+  if (!h || h === "localhost" || h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com")) {
+    return "meine-domain.de";
+  }
+  return h;
+}
+
+function defaultCfg(): Cfg {
+  const domain = detectDomain();
+  return {
+    domain,
     port: "3000",
     jwtSecret: randomHex(32),
     dbPath: "./data/app.db",
@@ -44,26 +56,67 @@ export function SelfHostSetup() {
     adminPassword: "root",
     googleClientId: "",
     googleClientSecret: "",
-    googleRedirectUri: "https://meine-domain.de/api/auth/google/callback",
+    googleRedirectUri: `https://${domain}/api/auth/google/callback`,
     appUser: "app",
     appDir: "/opt/png-json-pal",
     nodeBin: "/usr/bin/node",
-  }));
+  };
+}
 
-  const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setCfg((p) => ({ ...p, [k]: v }));
+export function SelfHostSetup() {
+  const [cfg, setCfg] = useState<Cfg>(() => {
+    if (typeof window === "undefined") return defaultCfg();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return { ...defaultCfg(), ...JSON.parse(raw) };
+    } catch {}
+    return defaultCfg();
+  });
+
+  // persist
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    } catch {}
+  }, [cfg]);
+
+  const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => {
+    setCfg((p) => {
+      const next = { ...p, [k]: v };
+      // auto-update redirect URI when domain changes (only if user hasn't customized it)
+      if (k === "domain" && typeof v === "string") {
+        const expectedOld = `https://${p.domain}/api/auth/google/callback`;
+        if (p.googleRedirectUri === expectedOld || !p.googleRedirectUri) {
+          next.googleRedirectUri = `https://${v}/api/auth/google/callback`;
+        }
+      }
+      return next;
+    });
+  };
+
+  const reset = () => {
+    if (confirm("Alle Eingaben zurücksetzen?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      setCfg(defaultCfg());
+      toast.success("Zurückgesetzt");
+    }
+  };
 
   const files = useMemo(() => buildFiles(cfg), [cfg]);
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
-        <Info className="h-4 w-4 shrink-0 mt-0.5" />
-        <div>
-          Trage die Werte ein. Unten findest du fertige Dateien zum Kopieren. Ein direkter
-          SSH-Zugriff aus dem Browser ist aus Sicherheitsgründen nicht möglich –
-          die generierten Shell-Befehle kannst du per Copy &amp; Paste in deiner
-          SSH-Session auf dem Server ausführen.
+      <div className="flex items-start justify-between gap-3">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2 flex-1">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            Eingaben werden lokal im Browser gespeichert und sind beim nächsten Öffnen wieder da.
+            Domain wird automatisch erkannt. Unten findest du fertige Dateien zum Kopieren.
+          </div>
         </div>
+        <Button size="sm" variant="outline" onClick={reset}>
+          <RefreshCw className="h-3.5 w-3.5" /> Zurücksetzen
+        </Button>
       </div>
 
       {/* ---------- INPUT FIELDS ---------- */}
@@ -228,6 +281,32 @@ ${c.googleClientSecret ? `GOOGLE_CLIENT_SECRET=${c.googleClientSecret}` : "# GOO
 GOOGLE_REDIRECT_URI=${c.googleRedirectUri}
 `;
 
+  const frontendEnvContent = `# .env  (Frontend / Vite – im Projekt-Root)
+# Wird beim \`npm run build\` eingelesen. Variablen müssen mit VITE_ beginnen,
+# damit sie im Browser-Bundle landen.
+VITE_API_BASE_URL=https://${c.domain}
+VITE_APP_NAME=PNG JSON Pal
+`;
+
+  const viteConfigContent = `// vite.config.ts  (Projekt-Root) – Self-Host-Variante
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+export default defineConfig({
+  vite: {
+    server: {
+      allowedHosts: ["${c.domain}"],
+    },
+    preview: {
+      allowedHosts: ["${c.domain}"],
+    },
+  },
+
+  tanstackStart: {
+    server: { entry: "server" },
+  },
+});
+`;
+
   const systemdContent = `# /etc/systemd/system/png-json-pal.service
 [Unit]
 Description=PNG JSON Pal (Node + SQLite)
@@ -350,8 +429,20 @@ find "$DEST" -name 'app-*.db' -mtime +30 -delete
 
   return [
     {
+      path: ".env",
+      description: "Frontend-Umgebungsvariablen (Vite). Im Projekt-Root ablegen, vor `npm run build`.",
+      content: frontendEnvContent,
+      icon: "file" as const,
+    },
+    {
+      path: "vite.config.ts",
+      description: "Vite-Konfiguration im Projekt-Root (erlaubt deine Domain als Host).",
+      content: viteConfigContent,
+      icon: "file" as const,
+    },
+    {
       path: "server/.env",
-      description: "Secrets & Laufzeit-Pfade. Niemals in Git einchecken.",
+      description: "Secrets & Laufzeit-Pfade des Node-Servers. Niemals in Git einchecken.",
       content: envContent,
       icon: "file" as const,
     },
