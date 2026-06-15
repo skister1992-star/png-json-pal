@@ -106,14 +106,17 @@ export function SelfHostSetup() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2">
-        <Info className="h-4 w-4 shrink-0 mt-0.5" />
-        <div>
-          Trage die Werte ein. Unten findest du fertige Dateien zum Kopieren. Ein direkter
-          SSH-Zugriff aus dem Browser ist aus Sicherheitsgründen nicht möglich –
-          die generierten Shell-Befehle kannst du per Copy &amp; Paste in deiner
-          SSH-Session auf dem Server ausführen.
+      <div className="flex items-start justify-between gap-3">
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-900 dark:text-amber-200 flex gap-2 flex-1">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            Eingaben werden lokal im Browser gespeichert und sind beim nächsten Öffnen wieder da.
+            Domain wird automatisch erkannt. Unten findest du fertige Dateien zum Kopieren.
+          </div>
         </div>
+        <Button size="sm" variant="outline" onClick={reset}>
+          <RefreshCw className="h-3.5 w-3.5" /> Zurücksetzen
+        </Button>
       </div>
 
       {/* ---------- INPUT FIELDS ---------- */}
