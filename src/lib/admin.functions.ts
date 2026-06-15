@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const SESSION_TTL_HOURS = 24;
 
@@ -21,6 +23,98 @@ async function loadAdmin() {
   }
 }
 
+function publicDb() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!url || !key) {
+    throw new Error(
+      "Server-Konfiguration unvollständig: SUPABASE_URL und SUPABASE_PUBLISHABLE_KEY müssen auf dem Server gesetzt sein.",
+    );
+  }
+
+  return createClient<Database>(url, key, {
+    auth: {
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+function errMsg(e: unknown) {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function isWrongPassword(e: unknown) {
+  return errMsg(e).toLowerCase().includes("falsches passwort");
+}
+
+async function loginWithPublicRpc(password: string) {
+  const db = publicDb();
+  const { data, error } = await db.rpc("admin_login", { _password: password });
+  if (error) throw new Error(error.message);
+  const session = data?.[0];
+  if (!session?.token || !session.expires_at) throw new Error("Login fehlgeschlagen");
+  return { token: session.token, expires_at: session.expires_at };
+}
+
+async function loginWithServiceRole(password: string) {
+  const supabaseAdmin = await loadAdmin();
+
+  // Self-host bootstrap: if no admin row exists yet (e.g. seed migration
+  // wasn't applied on the exported server), create the default 'admin:root'
+  // entry on the fly so the operator can log in for the first time.
+  const { data: existing, error: existErr } = await supabaseAdmin
+    .from("admin_settings")
+    .select("id")
+    .eq("id", 1)
+    .maybeSingle();
+  if (existErr) {
+    throw new Error(
+      "Admin-Tabelle nicht erreichbar. Bitte Datenbank-Migrationen auf dem Server ausführen. (" +
+        existErr.message +
+        ")",
+    );
+  }
+  if (!existing) {
+    const { error: seedErr } = await supabaseAdmin.rpc("admin_set_password", {
+      _new_password: "admin:root",
+    });
+    if (seedErr) {
+      const { error: insErr } = await supabaseAdmin
+        .from("admin_settings")
+        .insert({ id: 1, password_hash: "x" });
+      if (insErr) throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
+      const { error: setErr } = await supabaseAdmin.rpc("admin_set_password", {
+        _new_password: "admin:root",
+      });
+      if (setErr) throw new Error("Konnte Admin-Passwort nicht setzen: " + setErr.message);
+    } else {
+      const { error: insErr } = await supabaseAdmin
+        .from("admin_settings")
+        .insert({ id: 1, password_hash: "x" });
+      if (insErr && !/duplicate/i.test(insErr.message)) {
+        throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
+      }
+      await supabaseAdmin.rpc("admin_set_password", { _new_password: "admin:root" });
+    }
+  }
+
+  const { data: ok, error } = await supabaseAdmin.rpc("admin_verify_password", {
+    _password: password,
+  });
+  if (error) throw error;
+  if (!ok) throw new Error("Falsches Passwort");
+  const token = randomToken();
+  const expires = new Date(Date.now() + SESSION_TTL_HOURS * 3600_000).toISOString();
+  const { error: e2 } = await supabaseAdmin
+    .from("admin_sessions")
+    .insert({ token, expires_at: expires });
+  if (e2) throw e2;
+  return { token, expires_at: expires };
+}
+
 async function verifyToken(token: string) {
   if (!token) throw new Error("Kein Admin-Token");
   const supabaseAdmin = await loadAdmin();
@@ -40,8 +134,10 @@ async function verifyToken(token: string) {
 
 // ---------- Server env diagnostic (no secrets returned) ----------
 export const adminEnvCheck = createServerFn({ method: "GET" }).handler(async () => ({
-  hasUrl: !!process.env.SUPABASE_URL,
-  hasPublishableKey: !!process.env.SUPABASE_PUBLISHABLE_KEY,
+  hasUrl: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+  hasPublishableKey: !!(
+    process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  ),
   hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
 }));
 
@@ -49,65 +145,25 @@ export const adminEnvCheck = createServerFn({ method: "GET" }).handler(async () 
 export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((d: { password: string }) => d)
   .handler(async ({ data }) => {
-    const supabaseAdmin = await loadAdmin();
+    let publicError: unknown;
+    try {
+      return await loginWithPublicRpc(data.password);
+    } catch (e) {
+      if (isWrongPassword(e)) throw e;
+      publicError = e;
+    }
 
-    // Self-host bootstrap: if no admin row exists yet (e.g. seed migration
-    // wasn't applied on the exported server), create the default 'admin:root'
-    // entry on the fly so the operator can log in for the first time.
-    const { data: existing, error: existErr } = await supabaseAdmin
-      .from("admin_settings")
-      .select("id")
-      .eq("id", 1)
-      .maybeSingle();
-    if (existErr) {
+    try {
+      return await loginWithServiceRole(data.password);
+    } catch (e) {
+      if (isWrongPassword(e)) throw e;
       throw new Error(
-        "Admin-Tabelle nicht erreichbar. Bitte Datenbank-Migrationen auf dem Server ausführen. (" +
-          existErr.message +
-          ")",
+        "Admin-Login fehlgeschlagen. Bitte auf dem Zielserver die neuesten Datenbank-Migrationen ausführen und SUPABASE_URL + SUPABASE_PUBLISHABLE_KEY prüfen. Details: " +
+          errMsg(e) +
+          " / Fallback: " +
+          errMsg(publicError),
       );
     }
-    if (!existing) {
-      const { error: seedErr } = await supabaseAdmin.rpc("admin_set_password", {
-        _new_password: "admin:root",
-      });
-      // admin_set_password uses UPDATE; if no row exists it won't insert.
-      // Fall back to a direct insert via SQL through a tiny RPC alternative:
-      if (seedErr) {
-        // Try a raw insert with a freshly crypt()ed hash via a temporary RPC-less path:
-        // we use the rpc to compute the hash by calling admin_set_password after insert.
-        const { error: insErr } = await supabaseAdmin
-          .from("admin_settings")
-          .insert({ id: 1, password_hash: "x" }); // placeholder, replaced below
-        if (insErr) throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
-        const { error: setErr } = await supabaseAdmin.rpc("admin_set_password", {
-          _new_password: "admin:root",
-        });
-        if (setErr) throw new Error("Konnte Admin-Passwort nicht setzen: " + setErr.message);
-      } else {
-        // admin_set_password ran but UPDATE matched 0 rows — insert + retry.
-        const { error: insErr } = await supabaseAdmin
-          .from("admin_settings")
-          .insert({ id: 1, password_hash: "x" });
-        if (insErr && !/duplicate/i.test(insErr.message)) {
-          throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
-        }
-        await supabaseAdmin.rpc("admin_set_password", { _new_password: "admin:root" });
-      }
-    }
-
-    // Verify password using pgcrypto crypt() comparison
-    const { data: ok, error } = await supabaseAdmin.rpc("admin_verify_password", {
-      _password: data.password,
-    });
-    if (error) throw error;
-    if (!ok) throw new Error("Falsches Passwort");
-    const token = randomToken();
-    const expires = new Date(Date.now() + SESSION_TTL_HOURS * 3600_000).toISOString();
-    const { error: e2 } = await supabaseAdmin
-      .from("admin_sessions")
-      .insert({ token, expires_at: expires });
-    if (e2) throw e2;
-    return { token, expires_at: expires };
   });
 
 // ---------- Logout ----------
