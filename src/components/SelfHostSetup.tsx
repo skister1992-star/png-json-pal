@@ -37,10 +37,11 @@ function copy(text: string, label: string) {
 const STORAGE_KEY = "selfhost-setup-cfg-v1";
 
 function detectDomain(): string {
-  if (typeof window === "undefined") return "meine-domain.de";
+  if (typeof window === "undefined") return "";
   const h = window.location.hostname;
+  // Auf Preview/Lovable/localhost kein Platzhalter — Feld bleibt leer zum Eintragen
   if (!h || h === "localhost" || h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com")) {
-    return "meine-domain.de";
+    return "";
   }
   return h;
 }
@@ -70,9 +71,12 @@ export function SelfHostSetup() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<Cfg>;
-        // Domain immer frisch vom aktuellen Host erkennen (Preview / Prod / localhost)
-        const freshDomain = detectDomain();
-        return { ...defaultCfg(), ...saved, domain: freshDomain };
+        const merged = { ...defaultCfg(), ...saved };
+        // Alte Platzhalter aus früheren Versionen bereinigen
+        if (!merged.domain || merged.domain === "meine-domain.de") {
+          merged.domain = detectDomain();
+        }
+        return merged;
       }
     } catch {}
     return defaultCfg();
