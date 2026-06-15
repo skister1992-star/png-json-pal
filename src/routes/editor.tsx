@@ -23,8 +23,7 @@ import {
 import {
   listCharacters, saveCharacter, deleteCharacter, downloadImage, type CharacterRow,
 } from "@/lib/character-store";
-import type { Session } from "@supabase/supabase-js";
-import { SiteHeader, useSession, signInWithGoogle } from "@/components/SiteHeader";
+import { SiteHeader, useSession, signInWithGoogle, type AppSession } from "@/components/SiteHeader";
 
 export const Route = createFileRoute("/editor")({
   ssr: false,
