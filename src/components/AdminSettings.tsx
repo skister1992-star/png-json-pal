@@ -403,6 +403,3 @@ function ServerStatus() {
     </div>
   );
 }
-    </div>
-  );
-}
