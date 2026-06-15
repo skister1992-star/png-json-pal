@@ -373,25 +373,23 @@ export function AdminSettings() {
 
 function UsersPanel({
   token,
-  listFn,
-  getUserFn,
-  delUserFn,
-  banFn,
-  resetFn,
   onAuthLost,
 }: {
   token: string;
-  listFn: ReturnType<typeof useServerFn<typeof adminListUsers>>;
-  getUserFn: ReturnType<typeof useServerFn<typeof adminGetUser>>;
-  delUserFn: ReturnType<typeof useServerFn<typeof adminDeleteUser>>;
-  banFn: ReturnType<typeof useServerFn<typeof adminBanUser>>;
-  resetFn: ReturnType<typeof useServerFn<typeof adminSendPasswordReset>>;
   onAuthLost: () => void;
 }) {
+  const listFn = useServerFn(adminListUsers);
+  const getUserFn = useServerFn(adminGetUser);
+  const delUserFn = useServerFn(adminDeleteUser);
+  const banFn = useServerFn(adminBanUser);
+  const resetFn = useServerFn(adminSendPasswordReset);
+
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, UserDetails | "loading">>({});
+
+
 
   const refresh = useCallback(async () => {
     setLoading(true);
