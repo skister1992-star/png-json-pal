@@ -195,21 +195,32 @@ export function AdminSettings() {
           </DialogHeader>
 
           {!token ? (
-            <form onSubmit={doLogin} className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="ap">Admin Passwort</Label>
-                <Input
-                  id="ap"
-                  type="password"
-                  value={pass}
-                  onChange={(e) => setPass(e.target.value)}
-                  autoComplete="off"
-                />
+            <div className="space-y-4">
+              <form onSubmit={doLogin} className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="ap">Admin Passwort</Label>
+                  <Input
+                    id="ap"
+                    type="password"
+                    value={pass}
+                    onChange={(e) => setPass(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loggingIn}>
+                  {loggingIn ? "Wird geprüft…" : "Anmelden"}
+                </Button>
+              </form>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Fehlermeldung „Missing Supabase environment variable(s)…“?
+                  Dein Zielserver hat die nötigen Server-Variablen nicht gesetzt.
+                  Prüfe unten und trage sie in den Umgebungsvariablen deines Hostings ein
+                  (z. B. <code>.env</code>, Docker, Vercel/Netlify/CF Project Settings).
+                </p>
+                <ServerEnvPanel autoRun />
               </div>
-              <Button type="submit" className="w-full" disabled={loggingIn}>
-                {loggingIn ? "Wird geprüft…" : "Anmelden"}
-              </Button>
-            </form>
+            </div>
           ) : (
             <Tabs defaultValue="users">
               <TabsList className="grid w-full grid-cols-6">
@@ -726,7 +737,7 @@ function CloudProvidersPanel({ token }: { token: string }) {
 
 // ----------------- SERVER ENV PANEL (self-host diagnostics) -----------------
 
-function ServerEnvPanel() {
+function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
   const checkFn = useServerFn(adminEnvCheck);
   const [status, setStatus] = useState<{
     hasUrl: boolean;
@@ -736,7 +747,7 @@ function ServerEnvPanel() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function run() {
+  const run = useCallback(async () => {
     setBusy(true);
     setErr(null);
     try {
@@ -747,7 +758,12 @@ function ServerEnvPanel() {
     } finally {
       setBusy(false);
     }
-  }
+  }, [checkFn]);
+
+  useEffect(() => {
+    if (autoRun) void run();
+  }, [autoRun, run]);
+
 
   const vars = [
     "SUPABASE_URL",
