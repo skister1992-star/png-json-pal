@@ -34,9 +34,21 @@ function copy(text: string, label: string) {
   );
 }
 
-export function SelfHostSetup() {
-  const [cfg, setCfg] = useState<Cfg>(() => ({
-    domain: "meine-domain.de",
+const STORAGE_KEY = "selfhost-setup-cfg-v1";
+
+function detectDomain(): string {
+  if (typeof window === "undefined") return "meine-domain.de";
+  const h = window.location.hostname;
+  if (!h || h === "localhost" || h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com")) {
+    return "meine-domain.de";
+  }
+  return h;
+}
+
+function defaultCfg(): Cfg {
+  const domain = detectDomain();
+  return {
+    domain,
     port: "3000",
     jwtSecret: randomHex(32),
     dbPath: "./data/app.db",
@@ -44,13 +56,51 @@ export function SelfHostSetup() {
     adminPassword: "root",
     googleClientId: "",
     googleClientSecret: "",
-    googleRedirectUri: "https://meine-domain.de/api/auth/google/callback",
+    googleRedirectUri: `https://${domain}/api/auth/google/callback`,
     appUser: "app",
     appDir: "/opt/png-json-pal",
     nodeBin: "/usr/bin/node",
-  }));
+  };
+}
 
-  const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => setCfg((p) => ({ ...p, [k]: v }));
+export function SelfHostSetup() {
+  const [cfg, setCfg] = useState<Cfg>(() => {
+    if (typeof window === "undefined") return defaultCfg();
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return { ...defaultCfg(), ...JSON.parse(raw) };
+    } catch {}
+    return defaultCfg();
+  });
+
+  // persist
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    } catch {}
+  }, [cfg]);
+
+  const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => {
+    setCfg((p) => {
+      const next = { ...p, [k]: v };
+      // auto-update redirect URI when domain changes (only if user hasn't customized it)
+      if (k === "domain" && typeof v === "string") {
+        const expectedOld = `https://${p.domain}/api/auth/google/callback`;
+        if (p.googleRedirectUri === expectedOld || !p.googleRedirectUri) {
+          next.googleRedirectUri = `https://${v}/api/auth/google/callback`;
+        }
+      }
+      return next;
+    });
+  };
+
+  const reset = () => {
+    if (confirm("Alle Eingaben zurücksetzen?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      setCfg(defaultCfg());
+      toast.success("Zurückgesetzt");
+    }
+  };
 
   const files = useMemo(() => buildFiles(cfg), [cfg]);
 
