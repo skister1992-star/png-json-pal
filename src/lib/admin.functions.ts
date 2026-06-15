@@ -50,15 +50,57 @@ export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((d: { password: string }) => d)
   .handler(async ({ data }) => {
     const supabaseAdmin = await loadAdmin();
+
+    // Self-host bootstrap: if no admin row exists yet (e.g. seed migration
+    // wasn't applied on the exported server), create the default 'admin:root'
+    // entry on the fly so the operator can log in for the first time.
+    const { data: existing, error: existErr } = await supabaseAdmin
+      .from("admin_settings")
+      .select("id")
+      .eq("id", 1)
+      .maybeSingle();
+    if (existErr) {
+      throw new Error(
+        "Admin-Tabelle nicht erreichbar. Bitte Datenbank-Migrationen auf dem Server ausführen. (" +
+          existErr.message +
+          ")",
+      );
+    }
+    if (!existing) {
+      const { error: seedErr } = await supabaseAdmin.rpc("admin_set_password", {
+        _new_password: "admin:root",
+      });
+      // admin_set_password uses UPDATE; if no row exists it won't insert.
+      // Fall back to a direct insert via SQL through a tiny RPC alternative:
+      if (seedErr) {
+        // Try a raw insert with a freshly crypt()ed hash via a temporary RPC-less path:
+        // we use the rpc to compute the hash by calling admin_set_password after insert.
+        const { error: insErr } = await supabaseAdmin
+          .from("admin_settings")
+          .insert({ id: 1, password_hash: "x" }); // placeholder, replaced below
+        if (insErr) throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
+        const { error: setErr } = await supabaseAdmin.rpc("admin_set_password", {
+          _new_password: "admin:root",
+        });
+        if (setErr) throw new Error("Konnte Admin-Passwort nicht setzen: " + setErr.message);
+      } else {
+        // admin_set_password ran but UPDATE matched 0 rows — insert + retry.
+        const { error: insErr } = await supabaseAdmin
+          .from("admin_settings")
+          .insert({ id: 1, password_hash: "x" });
+        if (insErr && !/duplicate/i.test(insErr.message)) {
+          throw new Error("Konnte Admin-Seed nicht anlegen: " + insErr.message);
+        }
+        await supabaseAdmin.rpc("admin_set_password", { _new_password: "admin:root" });
+      }
+    }
+
     // Verify password using pgcrypto crypt() comparison
-    const { data: row, error } = await supabaseAdmin.rpc("admin_verify_password", {
+    const { data: ok, error } = await supabaseAdmin.rpc("admin_verify_password", {
       _password: data.password,
     });
-    if (error) {
-      // Fallback: do verification inline via raw SQL through a query
-      throw error;
-    }
-    if (!row) throw new Error("Falsches Passwort");
+    if (error) throw error;
+    if (!ok) throw new Error("Falsches Passwort");
     const token = randomToken();
     const expires = new Date(Date.now() + SESSION_TTL_HOURS * 3600_000).toISOString();
     const { error: e2 } = await supabaseAdmin
