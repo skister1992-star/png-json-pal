@@ -38,12 +38,7 @@ const STORAGE_KEY = "selfhost-setup-cfg-v1";
 
 function detectDomain(): string {
   if (typeof window === "undefined") return "";
-  const h = window.location.hostname;
-  // Auf Preview/Lovable/localhost kein Platzhalter — Feld bleibt leer zum Eintragen
-  if (!h || h === "localhost" || h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com")) {
-    return "";
-  }
-  return h;
+  return window.location.hostname;
 }
 
 function defaultCfg(): Cfg {
