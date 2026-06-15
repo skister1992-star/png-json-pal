@@ -747,7 +747,7 @@ function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const run = React.useCallback(async () => {
+  const run = useCallback(async () => {
     setBusy(true);
     setErr(null);
     try {
@@ -760,7 +760,7 @@ function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
     }
   }, [checkFn]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (autoRun) void run();
   }, [autoRun, run]);
 
