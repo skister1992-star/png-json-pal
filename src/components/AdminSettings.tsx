@@ -195,21 +195,32 @@ export function AdminSettings() {
           </DialogHeader>
 
           {!token ? (
-            <form onSubmit={doLogin} className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="ap">Admin Passwort</Label>
-                <Input
-                  id="ap"
-                  type="password"
-                  value={pass}
-                  onChange={(e) => setPass(e.target.value)}
-                  autoComplete="off"
-                />
+            <div className="space-y-4">
+              <form onSubmit={doLogin} className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="ap">Admin Passwort</Label>
+                  <Input
+                    id="ap"
+                    type="password"
+                    value={pass}
+                    onChange={(e) => setPass(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loggingIn}>
+                  {loggingIn ? "Wird geprüft…" : "Anmelden"}
+                </Button>
+              </form>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Fehlermeldung „Missing Supabase environment variable(s)…“?
+                  Dein Zielserver hat die nötigen Server-Variablen nicht gesetzt.
+                  Prüfe unten und trage sie in den Umgebungsvariablen deines Hostings ein
+                  (z. B. <code>.env</code>, Docker, Vercel/Netlify/CF Project Settings).
+                </p>
+                <ServerEnvPanel autoRun />
               </div>
-              <Button type="submit" className="w-full" disabled={loggingIn}>
-                {loggingIn ? "Wird geprüft…" : "Anmelden"}
-              </Button>
-            </form>
+            </div>
           ) : (
             <Tabs defaultValue="users">
               <TabsList className="grid w-full grid-cols-6">
