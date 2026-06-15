@@ -71,9 +71,12 @@ export function SelfHostSetup() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<Cfg>;
-        // Domain immer frisch vom aktuellen Host erkennen (Preview / Prod / localhost)
-        const freshDomain = detectDomain();
-        return { ...defaultCfg(), ...saved, domain: freshDomain };
+        const merged = { ...defaultCfg(), ...saved };
+        // Alte Platzhalter aus früheren Versionen bereinigen
+        if (!merged.domain || merged.domain === "meine-domain.de") {
+          merged.domain = detectDomain();
+        }
+        return merged;
       }
     } catch {}
     return defaultCfg();
