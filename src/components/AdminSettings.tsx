@@ -737,7 +737,7 @@ function CloudProvidersPanel({ token }: { token: string }) {
 
 // ----------------- SERVER ENV PANEL (self-host diagnostics) -----------------
 
-function ServerEnvPanel() {
+function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
   const checkFn = useServerFn(adminEnvCheck);
   const [status, setStatus] = useState<{
     hasUrl: boolean;
@@ -747,7 +747,7 @@ function ServerEnvPanel() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function run() {
+  const run = React.useCallback(async () => {
     setBusy(true);
     setErr(null);
     try {
@@ -758,7 +758,12 @@ function ServerEnvPanel() {
     } finally {
       setBusy(false);
     }
-  }
+  }, [checkFn]);
+
+  React.useEffect(() => {
+    if (autoRun) void run();
+  }, [autoRun, run]);
+
 
   const vars = [
     "SUPABASE_URL",
