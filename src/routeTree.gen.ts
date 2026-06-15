@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsercardRouteImport } from './routes/usercard'
+import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as LorebooksRouteImport } from './routes/lorebooks'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const UsercardRoute = UsercardRouteImport.update({
   id: '/usercard',
   path: '/usercard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthCallbackRoute = OauthCallbackRouteImport.update({
+  id: '/oauth-callback',
+  path: '/oauth-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LorebooksRoute = LorebooksRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
   '/lorebooks': typeof LorebooksRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/usercard': typeof UsercardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
   '/lorebooks': typeof LorebooksRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/usercard': typeof UsercardRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
   '/lorebooks': typeof LorebooksRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/usercard': typeof UsercardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor' | '/lorebooks' | '/usercard'
+  fullPaths: '/' | '/editor' | '/lorebooks' | '/oauth-callback' | '/usercard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor' | '/lorebooks' | '/usercard'
-  id: '__root__' | '/' | '/editor' | '/lorebooks' | '/usercard'
+  to: '/' | '/editor' | '/lorebooks' | '/oauth-callback' | '/usercard'
+  id:
+    | '__root__'
+    | '/'
+    | '/editor'
+    | '/lorebooks'
+    | '/oauth-callback'
+    | '/usercard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditorRoute: typeof EditorRoute
   LorebooksRoute: typeof LorebooksRoute
+  OauthCallbackRoute: typeof OauthCallbackRoute
   UsercardRoute: typeof UsercardRoute
 }
 
@@ -76,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/usercard'
       fullPath: '/usercard'
       preLoaderRoute: typeof UsercardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth-callback': {
+      id: '/oauth-callback'
+      path: '/oauth-callback'
+      fullPath: '/oauth-callback'
+      preLoaderRoute: typeof OauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lorebooks': {
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditorRoute: EditorRoute,
   LorebooksRoute: LorebooksRoute,
+  OauthCallbackRoute: OauthCallbackRoute,
   UsercardRoute: UsercardRoute,
 }
 export const routeTree = rootRouteImport

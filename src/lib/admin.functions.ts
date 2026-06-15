@@ -149,3 +149,30 @@ export const adminSendPasswordReset = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// ---------- OAuth app config (Google/MS/Dropbox client IDs) ----------
+export const adminSetOAuthConfig = createServerFn({ method: "POST" })
+  .inputValidator(
+    (d: {
+      token: string;
+      google_client_id: string;
+      microsoft_client_id: string;
+      microsoft_tenant: string;
+      dropbox_app_key: string;
+    }) => d,
+  )
+  .handler(async ({ data }) => {
+    const admin = await verifyToken(data.token);
+    const { error } = await admin
+      .from("oauth_app_config")
+      .update({
+        google_client_id: data.google_client_id,
+        microsoft_client_id: data.microsoft_client_id,
+        microsoft_tenant: data.microsoft_tenant || "common",
+        dropbox_app_key: data.dropbox_app_key,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", 1);
+    if (error) throw error;
+    return { ok: true };
+  });

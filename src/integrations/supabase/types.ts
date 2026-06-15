@@ -107,6 +107,33 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_app_config: {
+        Row: {
+          dropbox_app_key: string
+          google_client_id: string
+          id: number
+          microsoft_client_id: string
+          microsoft_tenant: string
+          updated_at: string
+        }
+        Insert: {
+          dropbox_app_key?: string
+          google_client_id?: string
+          id?: number
+          microsoft_client_id?: string
+          microsoft_tenant?: string
+          updated_at?: string
+        }
+        Update: {
+          dropbox_app_key?: string
+          google_client_id?: string
+          id?: number
+          microsoft_client_id?: string
+          microsoft_tenant?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_cards: {
         Row: {
           created_at: string

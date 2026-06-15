@@ -34,8 +34,14 @@ import {
   adminDeleteUser,
   adminBanUser,
   adminSendPasswordReset,
+  adminSetOAuthConfig,
 } from "@/lib/admin.functions";
 import { getStorageMode, setStorageMode, type StorageMode } from "@/lib/storage-mode";
+import {
+  loadOAuthAppConfig,
+  invalidateOAuthAppConfigCache,
+  type OAuthAppConfig,
+} from "@/lib/cloud-providers/app-config";
 
 const TOKEN_KEY = "admin_token_v2";
 const CFG_KEY = "self_host_config_v1";
@@ -204,12 +210,13 @@ export function AdminSettings() {
             </form>
           ) : (
             <Tabs defaultValue="users">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="users">Nutzer</TabsTrigger>
                 <TabsTrigger value="storage">Speicher</TabsTrigger>
                 <TabsTrigger value="password">Passwort</TabsTrigger>
                 <TabsTrigger value="backend">Backend</TabsTrigger>
                 <TabsTrigger value="google">Google</TabsTrigger>
+                <TabsTrigger value="cloud">Cloud-Provider</TabsTrigger>
               </TabsList>
 
               <TabsContent value="users" className="pt-4">
@@ -332,6 +339,10 @@ export function AdminSettings() {
                 <div className="flex justify-end">
                   <Button onClick={saveCfg}>Speichern</Button>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="cloud" className="space-y-3 pt-4">
+                <CloudProvidersPanel token={token} />
               </TabsContent>
             </Tabs>
           )}
@@ -607,5 +618,112 @@ function PasswordPanel({ token }: { token: string }) {
         {busy ? "Speichern…" : "Passwort ändern"}
       </Button>
     </form>
+  );
+}
+
+// ----------------- CLOUD PROVIDERS PANEL -----------------
+
+function CloudProvidersPanel({ token }: { token: string }) {
+  const setFn = useServerFn(adminSetOAuthConfig);
+  const [cfg, setCfg] = useState<OAuthAppConfig>({
+    google_client_id: "",
+    microsoft_client_id: "",
+    microsoft_tenant: "common",
+    dropbox_app_key: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void loadOAuthAppConfig(true).then((c) => {
+      setCfg(c);
+      setLoading(false);
+    });
+  }, []);
+
+  const redirectUrl =
+    typeof window !== "undefined" ? window.location.origin + "/oauth-callback" : "";
+
+  async function save() {
+    setBusy(true);
+    try {
+      await setFn({ data: { token, ...cfg } });
+      invalidateOAuthAppConfigCache();
+      toast.success("Cloud-Provider Konfiguration gespeichert");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) return <div className="text-sm text-muted-foreground">Lade…</div>;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Trage hier zentrale OAuth Client-IDs für die Cloud-Speicheroptionen ein.
+        Nutzer können sich anschließend mit einem Klick mit ihrem eigenen Konto verbinden.
+      </p>
+
+      <div className="rounded-md border bg-muted px-3 py-2 text-xs">
+        <div className="font-medium mb-1">Redirect URL (überall eintragen):</div>
+        <div className="flex items-center gap-2 font-mono break-all">
+          <span className="flex-1">{redirectUrl}</span>
+          <CopyField value={redirectUrl} />
+        </div>
+      </div>
+
+      <div className="space-y-2 border rounded-md p-3">
+        <div className="font-medium text-sm">Google Drive</div>
+        <p className="text-[11px] text-muted-foreground">
+          Google Cloud Console → OAuth 2.0 Client (Web). Scope „drive.appdata". Authorized
+          JavaScript origin: <code>{typeof window !== "undefined" ? window.location.origin : ""}</code>
+        </p>
+        <Label>Client ID</Label>
+        <Input
+          placeholder="xxxxx.apps.googleusercontent.com"
+          value={cfg.google_client_id}
+          onChange={(e) => setCfg({ ...cfg, google_client_id: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2 border rounded-md p-3">
+        <div className="font-medium text-sm">Microsoft OneDrive</div>
+        <p className="text-[11px] text-muted-foreground">
+          Azure Portal → App registrations → SPA-Plattform. Scope „Files.ReadWrite.AppFolder offline_access".
+        </p>
+        <Label>Application (client) ID</Label>
+        <Input
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          value={cfg.microsoft_client_id}
+          onChange={(e) => setCfg({ ...cfg, microsoft_client_id: e.target.value })}
+        />
+        <Label>Tenant (z. B. „common" oder Tenant-ID)</Label>
+        <Input
+          value={cfg.microsoft_tenant}
+          onChange={(e) => setCfg({ ...cfg, microsoft_tenant: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2 border rounded-md p-3">
+        <div className="font-medium text-sm">Dropbox</div>
+        <p className="text-[11px] text-muted-foreground">
+          Dropbox App Console → App folder Zugriff → PKCE aktivieren. Scopes „files.content.write
+          files.content.read account_info.read".
+        </p>
+        <Label>App Key</Label>
+        <Input
+          value={cfg.dropbox_app_key}
+          onChange={(e) => setCfg({ ...cfg, dropbox_app_key: e.target.value })}
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={busy}>
+          {busy ? "Speichern…" : "Speichern"}
+        </Button>
+      </div>
+    </div>
   );
 }
