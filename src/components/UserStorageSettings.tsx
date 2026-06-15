@@ -27,7 +27,7 @@ import { clearCustomSupabaseCache, getCustomSupabase } from "@/lib/custom-supaba
 export function UserStorageSettings() {
   const [session, setSession] = useState<Session | null>(null);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<StorageMode>("cloud");
+  const [mode, setMode] = useState<StorageMode>("local");
   const [cfg, setCfg] = useState<CustomCloudConfig>({
     url: "",
     anonKey: "",
@@ -54,11 +54,7 @@ export function UserStorageSettings() {
     setMode(m);
     setStorageMode(m);
     toast.success(
-      m === "cloud"
-        ? "App-Cloud aktiv"
-        : m === "local"
-          ? "Lokaler Speicher aktiv"
-          : "Eigene Cloud aktiv",
+      m === "local" ? "Lokaler Speicher aktiv" : "Eigene Cloud aktiv",
     );
   }
 
@@ -105,22 +101,6 @@ export function UserStorageSettings() {
           </DialogHeader>
 
           <div className="space-y-3">
-            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-              <input
-                type="radio"
-                name="usm"
-                className="mt-1"
-                checked={mode === "cloud"}
-                onChange={() => applyMode("cloud")}
-              />
-              <div>
-                <div className="font-medium text-sm">App-Cloud (Standard)</div>
-                <div className="text-xs text-muted-foreground">
-                  Daten werden im Backend dieser App gespeichert. Sync über Geräte mit deinem Login.
-                </div>
-              </div>
-            </label>
-
             <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
               <input
                 type="radio"
