@@ -1,58 +1,102 @@
-## Teil 1 – Speichermodus erst nach erfolgreicher Verbindung
+# Komplett-Umbau: Self-Hosted Backend ohne Supabase
 
-**Datei: `src/components/UserStorageSettings.tsx`**
+## Ziel
+- **Kein Supabase mehr.** Eigenes Node.js + SQLite Backend, das auf deinem Server läuft.
+- **Auth:** Email/Passwort (bcrypt + JWT) **und** Google Login (eigene Google OAuth Credentials).
+- **Daten-Trennung:**
+  - **Server-Daten** (Accounts, Admin-Settings, OAuth-Config) → SQLite auf deinem Server.
+  - **User-Inhalte** (Characters, Lorebooks, User Cards) → Browser-LocalStorage **oder** Google Drive, wenn der User sein Drive verbindet. **Nichts** davon liegt auf dem Server.
 
-- `selected` (UI-Auswahl) wird vom aktiven `mode` (`getStorageMode()`) getrennt. Radio-Klick ändert nur `selected`, nicht den aktiven Modus.
-- Das aktive Radio bekommt ein Badge „aktiv".
-- Neuer Button „Als Speicherort verwenden" pro Zeile. Gate je Modus:
-  | Modus | Aktivierbar wenn |
-  |---|---|
-  | `local` | immer |
-  | `gdrive` / `onedrive` / `dropbox` | `isTokenValid(getStoredToken(p))` |
-  | `webdav` | `testWebDAVConnection(dav)` ist ok |
-  | `custom` | `testCustom()` ist ok (Ergebnis im State `customVerified` merken) |
-- Button disabled mit Hinweis: „Erst verbinden" / „Erst Verbindung testen". Erst nach Klick → `setStorageMode(p)`.
-- Für WebDAV und „Eigene Supabase-Cloud": existierender „Speichern"-Button wird zu „Verbinden & aktivieren" – speichert Config, testet, setzt bei Erfolg Mode; Fehler → Toast, Mode unverändert.
-- Wenn der aktive Modus durch Trennen/Config-Löschen ungültig wird → automatisch zurück auf `local` mit Toast.
+## Wichtige Einschränkung der Lovable-Vorschau
+Die Lovable-Preview läuft auf Cloudflare Workers (kein Dateisystem, kein SQLite). Das neue Backend kann **nur auf deinem eigenen Server** laufen.
+- In der Lovable-Preview wird das Frontend automatisch in einen **„Demo-Modus"** fallen: kein Login, alles im LocalStorage. So bleibt die Preview benutzbar zum Designen/Testen.
+- Sobald du exportierst und den Server startest, ist alles voll funktional (Login, Admin, Multi-User).
 
-**Datei: `src/lib/cloud-providers/webdav.ts`**
+## Was gebaut wird
 
-- Neue Funktion `testWebDAVConnection(cfg: WebDAVConfig): Promise<void>` → `PROPFIND Depth:0` auf `${baseUrl}/${folder}/`; bei 404 `MKCOL` anlegen; bei Fehler werfen.
+### 1. Neues `server/` Verzeichnis (Node.js + Express + SQLite)
+```text
+server/
+├── package.json          # eigene deps: express, better-sqlite3, bcrypt, jsonwebtoken, zod
+├── README.md             # Self-Hosting Anleitung
+├── .env.example          # PORT, JWT_SECRET, ADMIN_PASSWORD, GOOGLE_CLIENT_ID/SECRET
+├── src/
+│   ├── index.ts          # Express server + statisches Frontend ausliefern
+│   ├── db.ts             # SQLite Schema (users, sessions, admin_settings, oauth_config)
+│   ├── auth.ts           # bcrypt, JWT, Middleware
+│   ├── routes/
+│   │   ├── auth.ts       # POST /api/auth/register, /login, /logout, /me
+│   │   ├── google.ts     # GET /api/auth/google/start, /callback
+│   │   ├── admin.ts      # POST /api/admin/login, GET/PUT /api/admin/settings
+│   │   └── config.ts     # GET /api/config (public: google_client_id für Drive-OAuth)
+│   └── migrations.ts     # auto-run bei Start, erstellt admin:root falls leer
+```
 
-## Teil 2 – Admin-Bereich auch beim Self-Hosting nutzbar
+Standard-Admin: `admin` / `root` wird beim ersten Start automatisch erzeugt.
 
-Hintergrund: Admin-Login läuft über Server-Functions, die `supabaseAdmin` mit `SUPABASE_SERVICE_ROLE_KEY` benutzen. Auf einem fremden Server funktioniert das nur, wenn diese Env-Variablen gesetzt sind. Der Zahnrad-Button wird im Root-Layout immer gerendert, ist also überall sichtbar.
+### 2. Frontend-Umbau
+- **Entfernen:** `src/integrations/supabase/*`, `supabase/migrations/*`, alle `*.functions.ts` (createServerFn), alle Supabase-Imports.
+- **Neu:** `src/lib/api-client.ts` — fetch-Wrapper gegen `VITE_API_BASE_URL` (Demo-Modus wenn nicht gesetzt).
+- **Neu:** `src/lib/auth-context.tsx` — JWT im LocalStorage, `useAuth()` Hook.
+- **Routen:** `/auth` (Email/Passwort + „Sign in with Google" Button), `_authenticated/` Layout.
+- **Bestehende Stores** (`character-store.ts`, `lorebook.ts`, `user-cards`) bleiben **LocalStorage-basiert** und bekommen optionale Google-Drive-Sync (bereits teilweise vorhanden in `src/lib/cloud-providers/`).
+- **AdminSettings.tsx** & **UserStorageSettings.tsx** sprechen das neue Backend an.
 
-**Datei: `src/components/AdminSettings.tsx`**
+### 3. Google Auth (eigene Credentials)
+Im Admin-Bereich trägt der Self-Host-Betreiber ein:
+- Google Client ID
+- Google Client Secret
+- Redirect URI (z.B. `https://meinedomain.tld/api/auth/google/callback`)
 
-- Im bestehenden Tab „Self-Hosting" (bzw. Konfig-Tab) eine klar erkennbare Box mit den **erforderlichen Server-Env-Variablen für den Export** ergänzen, jeweils mit Copy-Button:
-  ```
-  SUPABASE_URL=…
-  SUPABASE_PUBLISHABLE_KEY=…
-  SUPABASE_SERVICE_ROLE_KEY=…   (für Admin-Login + User-Verwaltung)
-  VITE_SUPABASE_URL=…
-  VITE_SUPABASE_PUBLISHABLE_KEY=…
-  VITE_SUPABASE_PROJECT_ID=…
-  ```
-  Plus Hinweistext: „Ohne `SUPABASE_SERVICE_ROLE_KEY` auf dem Zielserver ist der Admin-Login dort nicht möglich."
-- Neuer Diagnose-Button „Server-Verbindung prüfen" → ruft eine neue, **unauthentifizierte** Server-Function `adminEnvCheck` (gibt nur Booleans zurück, keine Werte) und zeigt:
-  - `hasUrl`, `hasPublishableKey`, `hasServiceRole` – grün/rot pro Variable.
-- Login-Fehlertext erweitern: wenn Server-Function einen Env-Fehler wirft, freundlicher Hinweis mit Link zur Self-Hosting-Doku-Box.
+Wird in `oauth_config` Tabelle gespeichert. Frontend holt die Client-ID via `/api/config` und startet OAuth.
 
-**Datei: `src/lib/admin.functions.ts`**
+### 4. Cleanup
+- `supabase/` Ordner löschen.
+- `.env` aufräumen (nur noch `VITE_API_BASE_URL`).
+- `src/integrations/supabase/` löschen.
+- `src/lib/admin.functions.ts` löschen.
+- `package.json`: Supabase-Deps raus.
 
-- Neue Function `adminEnvCheck` (kein Token nötig, gibt nichts Sensibles zurück):
-  ```ts
-  export const adminEnvCheck = createServerFn({ method: "GET" })
-    .handler(async () => ({
-      hasUrl: !!process.env.SUPABASE_URL,
-      hasPublishableKey: !!process.env.SUPABASE_PUBLISHABLE_KEY,
-      hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    }));
-  ```
-- Bestehende `verifyToken`/`adminLogin` bekommen einen klareren Fehlertext, falls `supabaseAdmin` mangels Env nicht initialisiert werden kann (try/catch um den Import + sprechender Fehler „Server-Konfiguration unvollständig (SUPABASE_SERVICE_ROLE_KEY fehlt)").
+## Technisches im Detail
 
-## Nicht geändert
+**Backend-Stack im `server/`:**
+- `express` + `cookie-parser`
+- `better-sqlite3` (synchron, simpel, eine `.db`-Datei)
+- `bcryptjs` für Passwörter
+- `jsonwebtoken` für Sessions (HTTP-only Cookie, 7 Tage)
+- `zod` für Input-Validierung
+- Liefert das gebaute Frontend (`dist/`) als statische Dateien aus → **alles unter einer Domain**, kein CORS-Setup nötig.
 
-- DB-Schema, OAuth-Flow, Cloud-Adapter-API, `doc-store.ts`, `__root.tsx`-Buttons.
-- Keine neuen Geheimnisse im Client; `adminEnvCheck` liefert nur Booleans.
+**Frontend ↔ Backend Kommunikation:**
+- Same-origin: alle `/api/*` Calls.
+- JWT im `httpOnly` Cookie → automatisch mit jedem Request gesendet.
+- Routen-Guard via `beforeLoad` in `_authenticated/route.tsx`: ruft `/api/auth/me`, redirect zu `/auth` bei 401.
+
+**Self-Hosting Workflow (in `server/README.md`):**
+```bash
+# 1. Frontend bauen
+bun install && bun run build
+
+# 2. Server starten
+cd server && bun install
+cp .env.example .env   # JWT_SECRET setzen!
+bun run start          # läuft auf PORT (default 3000)
+```
+
+## Reihenfolge der Umsetzung
+1. `server/` komplett bauen (Node + SQLite + Auth + Google OAuth + Admin).
+2. Frontend `api-client.ts` + `auth-context.tsx` + `/auth` Route.
+3. Demo-Modus-Fallback für die Lovable-Preview.
+4. Supabase überall entfernen, alte Files löschen.
+5. README mit Setup-Anleitung.
+
+## Was du NACH dem Export tun musst
+1. `git clone` / Export herunterladen.
+2. Frontend bauen (`bun run build`).
+3. In `server/` einmal `.env` ausfüllen (JWT_SECRET mit z.B. `openssl rand -hex 32`).
+4. Server starten.
+5. Mit `admin` / `root` im Admin-Bereich einloggen → Google Client ID/Secret eintragen.
+6. Fertig.
+
+## Bestätigung
+Soll ich es genauso umsetzen? Das ist umfangreich (~20-30 Dateien neu/gelöscht) und nach dem Umbau wird die Lovable-Preview den Login-Flow **nicht** mehr live demonstrieren können — sie zeigt nur das UI im Demo-Modus. Voll funktional wird's erst auf deinem Server.
