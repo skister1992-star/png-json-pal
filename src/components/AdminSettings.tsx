@@ -324,18 +324,11 @@ export function AdminSettings() {
                     onChange={(e) => setCfg({ ...cfg, googleClientId: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Google Client Secret</Label>
-                  <Input
-                    type="password"
-                    placeholder="GOCSPX-..."
-                    value={cfg.googleClientSecret}
-                    onChange={(e) => setCfg({ ...cfg, googleClientSecret: e.target.value })}
-                  />
-                </div>
                 <p className="text-xs text-muted-foreground">
-                  Diese Werte müssen anschließend im eigenen Supabase-Projekt unter
-                  <em> Authentication → Providers → Google</em> hinterlegt werden.
+                  Die <strong>Client ID</strong> ist öffentlich und darf hier gespeichert werden.
+                  Das <strong>Client Secret</strong> wird ausschließlich direkt im eigenen
+                  Supabase-Projekt unter <em>Authentication → Providers → Google</em> hinterlegt –
+                  niemals im Browser.
                 </p>
                 <div className="flex justify-end">
                   <Button onClick={saveCfg}>Speichern</Button>
