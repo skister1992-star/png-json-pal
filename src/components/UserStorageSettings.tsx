@@ -56,6 +56,11 @@ export function UserStorageSettings() {
   const [testing, setTesting] = useState(false);
   const [connecting, setConnecting] = useState<ProviderId | null>(null);
   const [tick, setTick] = useState(0); // re-render when auth changes
+  const [appCfg, setAppCfg] = useState<{
+    google: boolean;
+    onedrive: boolean;
+    dropbox: boolean;
+  }>({ google: false, onedrive: false, dropbox: false });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -73,7 +78,13 @@ export function UserStorageSettings() {
     setMode(getStorageMode());
     setCfg(getCustomCloudConfig());
     setDav(getWebDAVConfig());
-    void loadOAuthAppConfig(); // warm cache
+    loadOAuthAppConfig().then((c) => {
+      setAppCfg({
+        google: !!c.google_client_id,
+        onedrive: !!c.microsoft_client_id,
+        dropbox: !!c.dropbox_app_key,
+      });
+    });
   }, [open]);
 
   if (!session) return null;
