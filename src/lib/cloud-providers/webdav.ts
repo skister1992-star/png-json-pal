@@ -112,6 +112,12 @@ async function deleteFile(cfg: WebDAVConfig, filename: string) {
     throw new Error("WebDAV delete fehlgeschlagen: " + resp.status);
 }
 
+export async function testWebDAVConnection(cfg: WebDAVConfig): Promise<void> {
+  if (!cfg.baseUrl) throw new Error("Server-URL fehlt");
+  if (!cfg.username) throw new Error("Benutzername fehlt");
+  await ensureFolder(cfg);
+}
+
 export const webDavAdapter: CloudAdapter = {
   id: "webdav",
   async ensureReady() {

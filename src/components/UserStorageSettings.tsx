@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Database, Cloud, CloudOff, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,10 @@ import {
   disconnectDropbox,
   loadOAuthAppConfig,
 } from "@/lib/cloud-providers";
+import { testWebDAVConnection } from "@/lib/cloud-providers/webdav";
 import { getStoredToken, isTokenValid, type ProviderId } from "@/lib/cloud-providers/oauth";
+
+type GateProvider = "gdrive" | "onedrive" | "dropbox";
 
 export function UserStorageSettings() {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,9 +56,11 @@ export function UserStorageSettings() {
     password: "",
     folder: "st-cs",
   });
-  const [testing, setTesting] = useState(false);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<ProviderId | null>(null);
-  const [tick, setTick] = useState(0); // re-render when auth changes
+  const [customVerified, setCustomVerified] = useState(false);
+  const [webdavVerified, setWebdavVerified] = useState(false);
+  const [tick, setTick] = useState(0);
   const [appCfg, setAppCfg] = useState<{
     google: boolean;
     onedrive: boolean;
@@ -78,6 +83,8 @@ export function UserStorageSettings() {
     setMode(getStorageMode());
     setCfg(getCustomCloudConfig());
     setDav(getWebDAVConfig());
+    setCustomVerified(false);
+    setWebdavVerified(false);
     loadOAuthAppConfig().then((c) => {
       setAppCfg({
         google: !!c.google_client_id,
@@ -87,39 +94,37 @@ export function UserStorageSettings() {
     });
   }, [open]);
 
+  // Auto-fallback: if the currently active mode lost its requirements, revert to local.
+  const checkActiveValid = useCallback(() => {
+    const m = getStorageMode();
+    if (m === "local") return;
+    let ok = true;
+    if (m === "gdrive" || m === "onedrive" || m === "dropbox") {
+      ok = isTokenValid(getStoredToken(m));
+    } else if (m === "webdav") {
+      const w = getWebDAVConfig();
+      ok = !!w.baseUrl && !!w.username;
+    } else if (m === "custom") {
+      const c = getCustomCloudConfig();
+      ok = !!c.url && !!c.anonKey;
+    }
+    if (!ok) {
+      setStorageMode("local");
+      setMode("local");
+      toast.message("Verbindung getrennt – Speicher auf Lokal zurückgesetzt.");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkActiveValid();
+  }, [tick, checkActiveValid]);
+
   if (!session) return null;
 
-  function applyMode(m: StorageMode) {
-    setMode(m);
+  function activate(m: StorageMode, label: string) {
     setStorageMode(m);
-    toast.success("Speichermodus geändert");
-  }
-
-  function saveCustom() {
-    setCustomCloudConfig(cfg);
-    clearCustomSupabaseCache();
-    toast.success("Eigene Cloud gespeichert");
-  }
-
-  function saveDav() {
-    setWebDAVConfig(dav);
-    toast.success("WebDAV gespeichert");
-  }
-
-  async function testCustom() {
-    setCustomCloudConfig(cfg);
-    clearCustomSupabaseCache();
-    setTesting(true);
-    try {
-      const c = await getCustomSupabase();
-      const { error } = await c.from("lorebooks").select("id").limit(1);
-      if (error) throw error;
-      toast.success("Verbindung erfolgreich");
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setTesting(false);
-    }
+    setMode(m);
+    toast.success(`Speicherort aktiv: ${label}`);
   }
 
   async function doConnect(p: ProviderId) {
@@ -145,12 +150,51 @@ export function UserStorageSettings() {
     setTick((t) => t + 1);
   }
 
-  // suppress unused-warning: tick is intentionally used to force re-render
+  async function connectAndActivateCustom() {
+    setBusyAction("custom");
+    try {
+      setCustomCloudConfig(cfg);
+      clearCustomSupabaseCache();
+      const c = await getCustomSupabase();
+      const { error } = await c.from("lorebooks").select("id").limit(1);
+      if (error) throw error;
+      setCustomVerified(true);
+      activate("custom", "Eigene Supabase-Cloud");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function connectAndActivateWebDAV() {
+    setBusyAction("webdav");
+    try {
+      setWebDAVConfig(dav);
+      await testWebDAVConnection(dav);
+      setWebdavVerified(true);
+      activate("webdav", "WebDAV / Nextcloud");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   void tick;
 
   const gConnected = isTokenValid(getStoredToken("gdrive"));
   const mConnected = isTokenValid(getStoredToken("onedrive"));
   const dConnected = isTokenValid(getStoredToken("dropbox"));
+
+  function providerActivate(p: GateProvider) {
+    const labels: Record<GateProvider, string> = {
+      gdrive: "Google Drive",
+      onedrive: "Microsoft OneDrive",
+      dropbox: "Dropbox",
+    };
+    activate(p, labels[p]);
+  }
 
   return (
     <>
@@ -168,83 +212,85 @@ export function UserStorageSettings() {
           <DialogHeader>
             <DialogTitle>Speicherort wählen</DialogTitle>
             <DialogDescription>
-              Lege fest, wo deine Lorebooks und User Cards gespeichert werden.
+              Aktiv wird ein Speicherort erst nach erfolgreicher Verbindung.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
-            <ModeRow
-              checked={mode === "local"}
-              onSelect={() => applyMode("local")}
+            <Row
+              active={mode === "local"}
               title="Lokal im Browser"
               desc="Daten bleiben nur in diesem Browser. Kein Upload, kein Sync."
+              actionLabel="Als Speicherort verwenden"
+              actionDisabled={mode === "local"}
+              onAction={() => activate("local", "Lokal")}
             />
 
             {appCfg.google && (
               <ProviderRow
-                checked={mode === "gdrive"}
-                onSelect={() => applyMode("gdrive")}
+                active={mode === "gdrive"}
                 title="Google Drive"
                 desc="Speichert verschlüsselt im versteckten App-Ordner deines Google Drive."
                 connected={gConnected}
                 busy={connecting === "gdrive"}
                 onConnect={() => doConnect("gdrive")}
                 onDisconnect={() => doDisconnect("gdrive")}
+                onActivate={() => providerActivate("gdrive")}
               />
             )}
 
             {appCfg.onedrive && (
               <ProviderRow
-                checked={mode === "onedrive"}
-                onSelect={() => applyMode("onedrive")}
+                active={mode === "onedrive"}
                 title="Microsoft OneDrive"
                 desc="Speichert im App-Ordner deines persönlichen OneDrive."
                 connected={mConnected}
                 busy={connecting === "onedrive"}
                 onConnect={() => doConnect("onedrive")}
                 onDisconnect={() => doDisconnect("onedrive")}
+                onActivate={() => providerActivate("onedrive")}
               />
             )}
 
             {appCfg.dropbox && (
               <ProviderRow
-                checked={mode === "dropbox"}
-                onSelect={() => applyMode("dropbox")}
+                active={mode === "dropbox"}
                 title="Dropbox"
                 desc="Speichert im App-Ordner deiner Dropbox (Apps/…)."
                 connected={dConnected}
                 busy={connecting === "dropbox"}
                 onConnect={() => doConnect("dropbox")}
                 onDisconnect={() => doDisconnect("dropbox")}
+                onActivate={() => providerActivate("dropbox")}
               />
             )}
 
-            <ModeRow
-              checked={mode === "webdav"}
-              onSelect={() => applyMode("webdav")}
+            <Row
+              active={mode === "webdav"}
               title="WebDAV / Nextcloud"
               desc="Beliebiger WebDAV-Server (Nextcloud, ownCloud …) mit Nutzername & Passwort."
-            />
-
-            {mode === "webdav" && (
-              <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+            >
+              <div className="space-y-3 mt-2">
                 <div className="space-y-1">
                   <Label>Server-URL</Label>
                   <Input
                     placeholder="https://cloud.example.com/remote.php/dav/files/USERNAME"
                     value={dav.baseUrl}
-                    onChange={(e) => setDav({ ...dav, baseUrl: e.target.value })}
+                    onChange={(e) => {
+                      setDav({ ...dav, baseUrl: e.target.value });
+                      setWebdavVerified(false);
+                    }}
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Bei Nextcloud findest du diese URL in den Einstellungen unter „WebDAV".
-                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Benutzername</Label>
                     <Input
                       value={dav.username}
-                      onChange={(e) => setDav({ ...dav, username: e.target.value })}
+                      onChange={(e) => {
+                        setDav({ ...dav, username: e.target.value });
+                        setWebdavVerified(false);
+                      }}
                     />
                   </div>
                   <div className="space-y-1">
@@ -252,7 +298,10 @@ export function UserStorageSettings() {
                     <Input
                       type="password"
                       value={dav.password}
-                      onChange={(e) => setDav({ ...dav, password: e.target.value })}
+                      onChange={(e) => {
+                        setDav({ ...dav, password: e.target.value });
+                        setWebdavVerified(false);
+                      }}
                     />
                   </div>
                 </div>
@@ -260,32 +309,43 @@ export function UserStorageSettings() {
                   <Label>Unterordner</Label>
                   <Input
                     value={dav.folder}
-                    onChange={(e) => setDav({ ...dav, folder: e.target.value })}
+                    onChange={(e) => {
+                      setDav({ ...dav, folder: e.target.value });
+                      setWebdavVerified(false);
+                    }}
                   />
                 </div>
-                <div className="flex justify-end">
-                  <Button size="sm" onClick={saveDav}>
-                    Speichern
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    onClick={connectAndActivateWebDAV}
+                    disabled={busyAction === "webdav" || !dav.baseUrl || !dav.username}
+                  >
+                    {busyAction === "webdav"
+                      ? "Verbinde…"
+                      : webdavVerified && mode === "webdav"
+                        ? "Aktiv"
+                        : "Verbinden & aktivieren"}
                   </Button>
                 </div>
               </div>
-            )}
+            </Row>
 
-            <ModeRow
-              checked={mode === "custom"}
-              onSelect={() => applyMode("custom")}
+            <Row
+              active={mode === "custom"}
               title="Eigene Supabase-Cloud"
               desc="Verbinde dein eigenes Supabase-Projekt mit den Tabellen lorebooks und user_cards."
-            />
-
-            {mode === "custom" && (
-              <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+            >
+              <div className="space-y-3 mt-2">
                 <div className="space-y-1">
                   <Label>Supabase URL</Label>
                   <Input
                     placeholder="https://xxxx.supabase.co"
                     value={cfg.url}
-                    onChange={(e) => setCfg({ ...cfg, url: e.target.value })}
+                    onChange={(e) => {
+                      setCfg({ ...cfg, url: e.target.value });
+                      setCustomVerified(false);
+                    }}
                   />
                 </div>
                 <div className="space-y-1">
@@ -293,7 +353,10 @@ export function UserStorageSettings() {
                   <Textarea
                     rows={2}
                     value={cfg.anonKey}
-                    onChange={(e) => setCfg({ ...cfg, anonKey: e.target.value })}
+                    onChange={(e) => {
+                      setCfg({ ...cfg, anonKey: e.target.value });
+                      setCustomVerified(false);
+                    }}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -302,7 +365,10 @@ export function UserStorageSettings() {
                     <Input
                       type="email"
                       value={cfg.email}
-                      onChange={(e) => setCfg({ ...cfg, email: e.target.value })}
+                      onChange={(e) => {
+                        setCfg({ ...cfg, email: e.target.value });
+                        setCustomVerified(false);
+                      }}
                     />
                   </div>
                   <div className="space-y-1">
@@ -310,20 +376,28 @@ export function UserStorageSettings() {
                     <Input
                       type="password"
                       value={cfg.password}
-                      onChange={(e) => setCfg({ ...cfg, password: e.target.value })}
+                      onChange={(e) => {
+                        setCfg({ ...cfg, password: e.target.value });
+                        setCustomVerified(false);
+                      }}
                     />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={testCustom} disabled={testing}>
-                    {testing ? "Teste…" : "Verbindung testen"}
-                  </Button>
-                  <Button size="sm" onClick={saveCustom}>
-                    Speichern
+                  <Button
+                    size="sm"
+                    onClick={connectAndActivateCustom}
+                    disabled={busyAction === "custom" || !cfg.url || !cfg.anonKey}
+                  >
+                    {busyAction === "custom"
+                      ? "Verbinde…"
+                      : customVerified && mode === "custom"
+                        ? "Aktiv"
+                        : "Verbinden & aktivieren"}
                   </Button>
                 </div>
               </div>
-            )}
+            </Row>
           </div>
         </DialogContent>
       </Dialog>
@@ -331,104 +405,113 @@ export function UserStorageSettings() {
   );
 }
 
-function ModeRow({
-  checked,
-  onSelect,
+function ActiveBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-medium px-2 py-0.5">
+      <CheckCircle2 className="h-3 w-3" /> aktiv
+    </span>
+  );
+}
+
+function Row({
+  active,
   title,
   desc,
+  actionLabel,
+  actionDisabled,
+  onAction,
+  children,
 }: {
-  checked: boolean;
-  onSelect: () => void;
+  active: boolean;
   title: string;
   desc: string;
+  actionLabel?: string;
+  actionDisabled?: boolean;
+  onAction?: () => void;
+  children?: React.ReactNode;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-      <input
-        type="radio"
-        name="usm"
-        className="mt-1"
-        checked={checked}
-        onChange={onSelect}
-      />
-      <div className="flex-1">
-        <div className="font-medium text-sm">{title}</div>
-        <div className="text-xs text-muted-foreground">{desc}</div>
+    <div className={`rounded-md border p-3 ${active ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="font-medium text-sm flex items-center gap-2">
+            {title}
+            {active && <ActiveBadge />}
+          </div>
+          <div className="text-xs text-muted-foreground">{desc}</div>
+        </div>
+        {actionLabel && onAction && (
+          <Button size="sm" onClick={onAction} disabled={actionDisabled}>
+            {active ? "Aktiv" : actionLabel}
+          </Button>
+        )}
       </div>
-    </label>
+      {children}
+    </div>
   );
 }
 
 function ProviderRow({
-  checked,
-  onSelect,
+  active,
   title,
   desc,
   connected,
   busy,
   onConnect,
   onDisconnect,
+  onActivate,
 }: {
-  checked: boolean;
-  onSelect: () => void;
+  active: boolean;
   title: string;
   desc: string;
   connected: boolean;
   busy: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
+  onActivate: () => void;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-      <input
-        type="radio"
-        name="usm"
-        className="mt-1"
-        checked={checked}
-        onChange={onSelect}
-      />
-      <div className="flex-1 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <div className="font-medium text-sm flex items-center gap-2">
-              {title}
-              {connected && (
-                <span className="inline-flex items-center gap-1 text-emerald-600 text-[11px]">
-                  <CheckCircle2 className="h-3 w-3" /> verbunden
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-muted-foreground">{desc}</div>
+    <div className={`rounded-md border p-3 ${active ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className="font-medium text-sm flex items-center gap-2">
+            {title}
+            {active && <ActiveBadge />}
+            {connected && !active && (
+              <span className="inline-flex items-center gap-1 text-emerald-600 text-[11px]">
+                <CheckCircle2 className="h-3 w-3" /> verbunden
+              </span>
+            )}
           </div>
+          <div className="text-xs text-muted-foreground">{desc}</div>
+        </div>
+        <div className="flex flex-col gap-2 items-end">
           {connected ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.preventDefault();
-                onDisconnect();
-              }}
-            >
-              <CloudOff className="h-4 w-4" />
-              Trennen
-            </Button>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onActivate}
+                disabled={active}
+                title={active ? "Bereits aktiv" : "Als Speicherort verwenden"}
+              >
+                {active ? "Aktiv" : "Als Speicherort verwenden"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={onDisconnect}>
+                <CloudOff className="h-3.5 w-3.5" /> Trennen
+              </Button>
+            </>
           ) : (
-            <Button
-              type="button"
-              size="sm"
-              disabled={busy}
-              onClick={(e) => {
-                e.preventDefault();
-                onConnect();
-              }}
-            >
+            <Button type="button" size="sm" disabled={busy} onClick={onConnect}>
               <Cloud className="h-4 w-4" />
               {busy ? "Verbinde…" : "Verbinden"}
             </Button>
           )}
+          {!connected && (
+            <span className="text-[10px] text-muted-foreground">Erst verbinden</span>
+          )}
         </div>
       </div>
-    </label>
+    </div>
   );
 }

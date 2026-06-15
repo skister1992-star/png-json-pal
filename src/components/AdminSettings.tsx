@@ -35,6 +35,7 @@ import {
   adminBanUser,
   adminSendPasswordReset,
   adminSetOAuthConfig,
+  adminEnvCheck,
 } from "@/lib/admin.functions";
 import { getStorageMode, setStorageMode, type StorageMode } from "@/lib/storage-mode";
 import {
@@ -263,6 +264,7 @@ export function AdminSettings() {
               </TabsContent>
 
               <TabsContent value="backend" className="space-y-3 pt-4">
+                <ServerEnvPanel />
                 <p className="text-xs text-muted-foreground">
                   Nach dem Export auf deinen Server: trage hier die Verbindungsdaten deiner
                   eigenen Supabase-Instanz ein. Diese Werte musst du außerdem in deiner
@@ -718,6 +720,92 @@ function CloudProvidersPanel({ token }: { token: string }) {
           {busy ? "Speichern…" : "Speichern"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ----------------- SERVER ENV PANEL (self-host diagnostics) -----------------
+
+function ServerEnvPanel() {
+  const checkFn = useServerFn(adminEnvCheck);
+  const [status, setStatus] = useState<{
+    hasUrl: boolean;
+    hasPublishableKey: boolean;
+    hasServiceRole: boolean;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await checkFn();
+      setStatus(r);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Fehler");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const vars = [
+    "SUPABASE_URL",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "VITE_SUPABASE_URL",
+    "VITE_SUPABASE_PUBLISHABLE_KEY",
+    "VITE_SUPABASE_PROJECT_ID",
+  ];
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="font-medium text-sm">Self-Hosting Server-Variablen</div>
+          <p className="text-xs text-muted-foreground">
+            Diese Env-Variablen müssen auf deinem Zielserver gesetzt sein, damit der
+            Admin-Login und die Nutzerverwaltung dort funktionieren.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={run} disabled={busy}>
+          {busy ? "Prüfe…" : "Server-Verbindung prüfen"}
+        </Button>
+      </div>
+      <ul className="text-xs font-mono space-y-1">
+        {vars.map((v) => {
+          let dot = "•";
+          let color = "text-muted-foreground";
+          if (status) {
+            const ok =
+              (v === "SUPABASE_URL" && status.hasUrl) ||
+              (v === "SUPABASE_PUBLISHABLE_KEY" && status.hasPublishableKey) ||
+              (v === "SUPABASE_SERVICE_ROLE_KEY" && status.hasServiceRole);
+            if (v.startsWith("SUPABASE_")) {
+              dot = ok ? "✓" : "✗";
+              color = ok ? "text-emerald-600" : "text-destructive";
+            }
+          }
+          return (
+            <li key={v} className="flex items-center gap-2">
+              <span className={`${color} w-4 inline-block text-center`}>{dot}</span>
+              <span>{v}</span>
+              {v === "SUPABASE_SERVICE_ROLE_KEY" && (
+                <span className="text-muted-foreground">
+                  – nötig für Admin-Login &amp; Nutzerverwaltung
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {err && <p className="text-xs text-destructive">{err}</p>}
+      {status && !status.hasServiceRole && (
+        <p className="text-xs text-destructive">
+          Ohne <code>SUPABASE_SERVICE_ROLE_KEY</code> auf dem Zielserver ist der
+          Admin-Login dort nicht möglich.
+        </p>
+      )}
     </div>
   );
 }

@@ -9,9 +9,21 @@ function randomToken() {
   return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function loadAdmin() {
+  try {
+    const mod = await import("@/integrations/supabase/client.server");
+    return mod.supabaseAdmin;
+  } catch (e) {
+    throw new Error(
+      "Server-Konfiguration unvollständig: SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY müssen auf dem Server gesetzt sein. " +
+        (e instanceof Error ? `(${e.message})` : ""),
+    );
+  }
+}
+
 async function verifyToken(token: string) {
   if (!token) throw new Error("Kein Admin-Token");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const supabaseAdmin = await loadAdmin();
   const { data, error } = await supabaseAdmin
     .from("admin_sessions")
     .select("token, expires_at")
@@ -26,11 +38,18 @@ async function verifyToken(token: string) {
   return supabaseAdmin;
 }
 
+// ---------- Server env diagnostic (no secrets returned) ----------
+export const adminEnvCheck = createServerFn({ method: "GET" }).handler(async () => ({
+  hasUrl: !!process.env.SUPABASE_URL,
+  hasPublishableKey: !!process.env.SUPABASE_PUBLISHABLE_KEY,
+  hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+}));
+
 // ---------- Login ----------
 export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((d: { password: string }) => d)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await loadAdmin();
     // Verify password using pgcrypto crypt() comparison
     const { data: row, error } = await supabaseAdmin.rpc("admin_verify_password", {
       _password: data.password,
@@ -53,7 +72,7 @@ export const adminLogin = createServerFn({ method: "POST" })
 export const adminLogout = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await loadAdmin();
     await supabaseAdmin.from("admin_sessions").delete().eq("token", data.token);
     return { ok: true };
   });
