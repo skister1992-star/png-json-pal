@@ -55,7 +55,7 @@ function downloadBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function Editor({ session }: { session: Session | null }) {
+function Editor({ session }: { session: AppSession }) {
 
   const [card, setCard] = useState<AnyObj | null>(null);
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
