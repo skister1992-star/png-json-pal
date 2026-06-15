@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getStorageMode } from "./storage-mode";
 import { getCustomSupabase } from "./custom-supabase";
+import { getCloudAdapter } from "./cloud-providers";
 
 type TableName = "lorebooks" | "user_cards";
 
@@ -42,9 +43,13 @@ async function activeSupabase() {
 
 // ---------- Public API ----------
 export async function listDocs(table: TableName): Promise<DocRow[]> {
-  if (getStorageMode() === "local") {
+  const mode = getStorageMode();
+  if (mode === "local") {
     return readLocal(table).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   }
+  const adapter = getCloudAdapter(mode);
+  if (adapter) return adapter.list(table);
+
   const client = await activeSupabase();
   const { data, error } = await client
     .from(table)
@@ -60,7 +65,8 @@ export async function saveDoc(
   name: string,
   data: unknown,
 ): Promise<DocRow> {
-  if (getStorageMode() === "local") {
+  const mode = getStorageMode();
+  if (mode === "local") {
     const rows = readLocal(table);
     const now = new Date().toISOString();
     if (id) {
@@ -76,6 +82,9 @@ export async function saveDoc(
     writeLocal(table, rows);
     return row;
   }
+
+  const adapter = getCloudAdapter(mode);
+  if (adapter) return adapter.save(table, id, name, data);
 
   const client = await activeSupabase();
   const { data: userRes } = await client.auth.getUser();
@@ -101,10 +110,14 @@ export async function saveDoc(
 }
 
 export async function deleteDoc(table: TableName, id: string) {
-  if (getStorageMode() === "local") {
+  const mode = getStorageMode();
+  if (mode === "local") {
     writeLocal(table, readLocal(table).filter((r) => r.id !== id));
     return;
   }
+  const adapter = getCloudAdapter(mode);
+  if (adapter) return adapter.remove(table, id);
+
   const client = await activeSupabase();
   const { error } = await client.from(table).delete().eq("id", id);
   if (error) throw error;
