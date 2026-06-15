@@ -281,6 +281,32 @@ ${c.googleClientSecret ? `GOOGLE_CLIENT_SECRET=${c.googleClientSecret}` : "# GOO
 GOOGLE_REDIRECT_URI=${c.googleRedirectUri}
 `;
 
+  const frontendEnvContent = `# .env  (Frontend / Vite – im Projekt-Root)
+# Wird beim \`npm run build\` eingelesen. Variablen müssen mit VITE_ beginnen,
+# damit sie im Browser-Bundle landen.
+VITE_API_BASE_URL=https://${c.domain}
+VITE_APP_NAME=PNG JSON Pal
+`;
+
+  const viteConfigContent = `// vite.config.ts  (Projekt-Root) – Self-Host-Variante
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+export default defineConfig({
+  vite: {
+    server: {
+      allowedHosts: ["${c.domain}"],
+    },
+    preview: {
+      allowedHosts: ["${c.domain}"],
+    },
+  },
+
+  tanstackStart: {
+    server: { entry: "server" },
+  },
+});
+`;
+
   const systemdContent = `# /etc/systemd/system/png-json-pal.service
 [Unit]
 Description=PNG JSON Pal (Node + SQLite)
