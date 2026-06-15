@@ -198,15 +198,11 @@ export function AdminSettings() {
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
                   autoComplete="off"
-                  placeholder="Standard: admin:root"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loggingIn}>
                 {loggingIn ? "Wird geprüft…" : "Anmelden"}
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Standardpasswort beim ersten Login: <code>admin:root</code> — bitte sofort ändern.
-              </p>
             </form>
           ) : (
             <Tabs defaultValue="users">
