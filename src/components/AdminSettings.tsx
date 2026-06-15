@@ -78,10 +78,15 @@ export function AdminSettings() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Admin Einstellungen</DialogTitle>
-            <DialogDescription>
-              Verwaltung des eigenen Servers (Nutzer, Passwort, Google-OAuth).
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle>Admin Einstellungen</DialogTitle>
+                <DialogDescription>
+                  Verwaltung des eigenen Servers (Nutzer, Passwort, Google-OAuth).
+                </DialogDescription>
+              </div>
+              <ServerStatus />
+            </div>
           </DialogHeader>
 
           {authed === null ? (
