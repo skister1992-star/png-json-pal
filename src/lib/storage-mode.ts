@@ -3,7 +3,7 @@
 // - "local": browser localStorage only (private to this device/browser)
 // - "custom": user-provided Supabase project (their own cloud)
 
-export type StorageMode = "cloud" | "local" | "custom";
+export type StorageMode = "local" | "custom";
 
 const MODE_KEY = "storage_mode_v1";
 const CUSTOM_KEY = "storage_custom_cloud_v1";
@@ -18,10 +18,10 @@ export type CustomCloudConfig = {
 const EMPTY_CUSTOM: CustomCloudConfig = { url: "", anonKey: "", email: "", password: "" };
 
 export function getStorageMode(): StorageMode {
-  if (typeof window === "undefined") return "cloud";
+  if (typeof window === "undefined") return "local";
   const v = localStorage.getItem(MODE_KEY);
   if (v === "local" || v === "custom") return v;
-  return "cloud";
+  return "local";
 }
 
 export function setStorageMode(mode: StorageMode) {

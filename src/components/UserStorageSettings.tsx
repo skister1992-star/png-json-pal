@@ -27,7 +27,7 @@ import { clearCustomSupabaseCache, getCustomSupabase } from "@/lib/custom-supaba
 export function UserStorageSettings() {
   const [session, setSession] = useState<Session | null>(null);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<StorageMode>("cloud");
+  const [mode, setMode] = useState<StorageMode>("local");
   const [cfg, setCfg] = useState<CustomCloudConfig>({
     url: "",
     anonKey: "",
