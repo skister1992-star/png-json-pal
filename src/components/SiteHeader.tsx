@@ -71,7 +71,7 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
-        toast.success("Konto erstellt. Bitte E-Mail bestätigen, falls erforderlich.");
+        toast.success("Konto erstellt. Bitte E-Mail-Postfach prüfen und den Bestätigungslink anklicken, bevor du dich einloggst.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
