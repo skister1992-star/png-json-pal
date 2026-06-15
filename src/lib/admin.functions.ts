@@ -49,7 +49,7 @@ export const adminEnvCheck = createServerFn({ method: "GET" }).handler(async () 
 export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((d: { password: string }) => d)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await loadAdmin();
     // Verify password using pgcrypto crypt() comparison
     const { data: row, error } = await supabaseAdmin.rpc("admin_verify_password", {
       _password: data.password,
@@ -72,7 +72,7 @@ export const adminLogin = createServerFn({ method: "POST" })
 export const adminLogout = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabaseAdmin = await loadAdmin();
     await supabaseAdmin.from("admin_sessions").delete().eq("token", data.token);
     return { ok: true };
   });
