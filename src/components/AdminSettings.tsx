@@ -34,8 +34,14 @@ import {
   adminDeleteUser,
   adminBanUser,
   adminSendPasswordReset,
+  adminSetOAuthConfig,
 } from "@/lib/admin.functions";
 import { getStorageMode, setStorageMode, type StorageMode } from "@/lib/storage-mode";
+import {
+  loadOAuthAppConfig,
+  invalidateOAuthAppConfigCache,
+  type OAuthAppConfig,
+} from "@/lib/cloud-providers/app-config";
 
 const TOKEN_KEY = "admin_token_v2";
 const CFG_KEY = "self_host_config_v1";
