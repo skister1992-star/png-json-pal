@@ -166,6 +166,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_login: {
+        Args: { _password: string }
+        Returns: {
+          expires_at: string
+          token: string
+        }[]
+      }
       admin_set_password: {
         Args: { _new_password: string }
         Returns: undefined
