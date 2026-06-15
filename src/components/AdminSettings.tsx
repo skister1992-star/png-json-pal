@@ -217,6 +217,8 @@ export function AdminSettings() {
                   Dein Zielserver hat die nötigen Server-Variablen nicht gesetzt.
                   Prüfe unten und trage sie in den Umgebungsvariablen deines Hostings ein
                   (z. B. <code>.env</code>, Docker, Vercel/Netlify/CF Project Settings).
+                  Für den Login reicht nach den neuesten Migrationen URL + Publishable Key;
+                  der Service-Key wird für Nutzerverwaltung und Admin-Aktionen benötigt.
                 </p>
                 <ServerEnvPanel autoRun />
               </div>
@@ -781,7 +783,7 @@ function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
           <div className="font-medium text-sm">Self-Hosting Server-Variablen</div>
           <p className="text-xs text-muted-foreground">
             Diese Env-Variablen müssen auf deinem Zielserver gesetzt sein, damit der
-            Admin-Login und die Nutzerverwaltung dort funktionieren.
+            Adminbereich dort vollständig funktioniert.
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={run} disabled={busy}>
@@ -808,7 +810,7 @@ function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
               <span>{v}</span>
               {v === "SUPABASE_SERVICE_ROLE_KEY" && (
                 <span className="text-muted-foreground">
-                  – nötig für Admin-Login &amp; Nutzerverwaltung
+                  – nötig für Nutzerverwaltung &amp; Admin-Aktionen
                 </span>
               )}
             </li>
@@ -818,8 +820,8 @@ function ServerEnvPanel({ autoRun = false }: { autoRun?: boolean }) {
       {err && <p className="text-xs text-destructive">{err}</p>}
       {status && !status.hasServiceRole && (
         <p className="text-xs text-destructive">
-          Ohne <code>SUPABASE_SERVICE_ROLE_KEY</code> auf dem Zielserver ist der
-          Admin-Login dort nicht möglich.
+          Ohne <code>SUPABASE_SERVICE_ROLE_KEY</code> ist der Login nach aktuellen
+          Migrationen möglich, aber Nutzerverwaltung und Admin-Aktionen funktionieren nicht.
         </p>
       )}
     </div>
