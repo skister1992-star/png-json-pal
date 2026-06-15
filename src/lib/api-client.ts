@@ -88,7 +88,7 @@ async function probeBackend(): Promise<boolean> {
   } catch {
     backendAvailable = false;
   }
-  return backendAvailable;
+  return backendAvailable ?? false;
 }
 
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
