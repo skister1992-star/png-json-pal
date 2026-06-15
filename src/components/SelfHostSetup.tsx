@@ -429,8 +429,20 @@ find "$DEST" -name 'app-*.db' -mtime +30 -delete
 
   return [
     {
+      path: ".env",
+      description: "Frontend-Umgebungsvariablen (Vite). Im Projekt-Root ablegen, vor `npm run build`.",
+      content: frontendEnvContent,
+      icon: "file" as const,
+    },
+    {
+      path: "vite.config.ts",
+      description: "Vite-Konfiguration im Projekt-Root (erlaubt deine Domain als Host).",
+      content: viteConfigContent,
+      icon: "file" as const,
+    },
+    {
       path: "server/.env",
-      description: "Secrets & Laufzeit-Pfade. Niemals in Git einchecken.",
+      description: "Secrets & Laufzeit-Pfade des Node-Servers. Niemals in Git einchecken.",
       content: envContent,
       icon: "file" as const,
     },
