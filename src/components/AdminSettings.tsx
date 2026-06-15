@@ -210,12 +210,13 @@ export function AdminSettings() {
             </form>
           ) : (
             <Tabs defaultValue="users">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="users">Nutzer</TabsTrigger>
                 <TabsTrigger value="storage">Speicher</TabsTrigger>
                 <TabsTrigger value="password">Passwort</TabsTrigger>
                 <TabsTrigger value="backend">Backend</TabsTrigger>
                 <TabsTrigger value="google">Google</TabsTrigger>
+                <TabsTrigger value="cloud">Cloud-Provider</TabsTrigger>
               </TabsList>
 
               <TabsContent value="users" className="pt-4">
