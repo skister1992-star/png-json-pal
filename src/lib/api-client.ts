@@ -145,6 +145,22 @@ export const api = {
     return req<AppConfig>("/api/config");
   },
 
+  async health(): Promise<{ ok: boolean; demo: boolean; time?: string }> {
+    if (backendAvailable === false) {
+      return { ok: false, demo: true };
+    }
+    try {
+      const r = await req<{ ok: boolean; time?: string }>("/api/health");
+      return { ok: true, demo: false, time: r.time };
+    } catch (e) {
+      if ((e as Error).message === "__NO_BACKEND__") {
+        backendAvailable = false;
+        return { ok: false, demo: true };
+      }
+      return { ok: false, demo: false };
+    }
+  },
+
   // ---- Email/Passwort Auth ----
   async register(email: string, password: string): Promise<{ user: AppUser }> {
     return tryReq(
