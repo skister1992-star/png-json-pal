@@ -113,7 +113,7 @@ export function AdminSettings() {
   const [pass, setPass] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [cfg, setCfg] = useState<SelfHostConfig>(EMPTY);
-  const [storageMode, setStorageModeState] = useState<StorageMode>("cloud");
+  const [storageMode, setStorageModeState] = useState<StorageMode>("local");
 
   const loginFn = useServerFn(adminLogin);
   const logoutFn = useServerFn(adminLogout);
@@ -221,26 +221,6 @@ export function AdminSettings() {
                   Wo werden Lorebooks und User Cards gespeichert?
                 </p>
                 <div className="flex flex-col gap-2">
-                  <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="sm"
-                      checked={storageMode === "cloud"}
-                      onChange={() => {
-                        setStorageMode("cloud");
-                        setStorageModeState("cloud");
-                        toast.success("Cloud-Speicher aktiv");
-                      }}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div className="font-medium text-sm">Cloud (Backend)</div>
-                      <div className="text-xs text-muted-foreground">
-                        Daten werden im Backend gespeichert, synchronisieren zwischen Geräten,
-                        erfordern Login.
-                      </div>
-                    </div>
-                  </label>
                   <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
                     <input
                       type="radio"
