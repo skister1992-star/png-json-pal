@@ -16,4 +16,12 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
+
+  // Force Nitro to produce a standalone Node.js SSR server.
+  // Outside the Lovable sandbox build this produces `.output/server/index.mjs`
+  // which can be started with:  PORT=4173 node .output/server/index.mjs
+  // (Inside the Lovable preview the Cloudflare preset is still used.)
+  nitro: {
+    preset: "node-server",
+  },
 });
