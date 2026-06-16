@@ -19,6 +19,13 @@ type Cfg = {
   appUser: string;
   appDir: string;
   nodeBin: string;
+  // Cloudflare Tunnel (lokales Netz → Internet ohne offene Ports)
+  useTunnel: boolean;
+  tunnelName: string;
+  tunnelToken: string;
+  tunnelId: string;
+  tunnelCredFile: string;
+  localBindHost: string; // 127.0.0.1 wenn nur Tunnel, 0.0.0.0 sonst
 };
 
 function randomHex(bytes = 32): string {
