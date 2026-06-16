@@ -399,7 +399,29 @@ ProtectHome=true
 WantedBy=multi-user.target
 `;
 
-  const nginxContent = `# /etc/nginx/sites-available/${c.domain}
+  const nginxContent = c.useTunnel
+    ? `# /etc/nginx/sites-available/${c.domain}
+# Tunnel-Modus: nginx ist NUR auf 127.0.0.1 erreichbar.
+# Public HTTPS macht cloudflared (siehe cloudflared/config.yml).
+server {
+  listen ${c.localBindHost}:80;
+  server_name ${c.domain} localhost;
+
+  client_max_body_size 50M;
+
+  location / {
+    proxy_pass http://127.0.0.1:${c.port};
+    proxy_http_version 1.1;
+    proxy_set_header Host              ${c.domain};
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade           $http_upgrade;
+    proxy_set_header Connection        "upgrade";
+  }
+}
+`
+    : `# /etc/nginx/sites-available/${c.domain}
 server {
   listen 80;
   server_name ${c.domain};
@@ -420,6 +442,82 @@ server {
   }
 }
 `;
+
+  const cloudflaredConfig = `# /etc/cloudflared/config.yml
+# Cloudflared Konfiguration (CLI-Methode, ohne Dashboard-Token).
+# Bei Token-Methode (empfohlen) wird DIESE Datei NICHT benötigt –
+# stattdessen \`cloudflared service install <TOKEN>\` ausführen.
+tunnel: ${c.tunnelId || "<TUNNEL-ID-AUS-CREATE-BEFEHL>"}
+credentials-file: ${c.tunnelCredFile}
+
+ingress:
+  - hostname: ${c.domain}
+    service: http://127.0.0.1:${c.port}
+    originRequest:
+      httpHostHeader: ${c.domain}
+      noTLSVerify: true
+  - service: http_status:404
+`;
+
+  const cloudflaredService = `# /etc/systemd/system/cloudflared.service
+# Wird normalerweise automatisch durch \`cloudflared service install\` angelegt.
+# Hier nur als Referenz / manuelle Variante:
+[Unit]
+Description=Cloudflare Tunnel (${c.tunnelName})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run ${c.tunnelName}
+Restart=on-failure
+RestartSec=5
+User=cloudflared
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+  const tunnelInstallScript = c.useTunnel
+    ? `#!/usr/bin/env bash
+# cloudflared-install.sh – Cloudflare Tunnel einrichten
+# Vorher: in Cloudflare deine Domain "${c.domain || "deine-domain.de"}" hinzufügen
+# (Nameserver auf Cloudflare zeigen lassen).
+set -euo pipefail
+
+# 1) cloudflared installieren (Debian/Ubuntu)
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \\
+  | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" \\
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update && sudo apt-get install -y cloudflared
+
+# ---- VARIANTE A: Dashboard-Token (empfohlen, einfachster Weg) ----
+# 1. Cloudflare Dashboard → Zero Trust → Networks → Tunnels → "Create a tunnel"
+# 2. Connector "cloudflared" wählen → Token kopieren
+# 3. Public Hostname anlegen:  ${c.domain}   →   http://127.0.0.1:${c.port}
+# 4. Auf dem Server:
+${c.tunnelToken ? `sudo cloudflared service install ${c.tunnelToken}` : "# sudo cloudflared service install <DEIN-TUNNEL-TOKEN>"}
+# Fertig – cloudflared läuft als systemd-Service und veröffentlicht ${c.domain}.
+
+# ---- VARIANTE B: CLI-Methode (selbst-verwaltete config.yml) ----
+# sudo cloudflared tunnel login
+# sudo cloudflared tunnel create ${c.tunnelName}
+# (Credentials-Datei wird unter /root/.cloudflared/<ID>.json abgelegt – verschiebe
+#  sie nach ${c.tunnelCredFile} und passe config.yml an.)
+# sudo mkdir -p /etc/cloudflared
+# sudo cp config.yml /etc/cloudflared/config.yml
+# sudo cloudflared tunnel route dns ${c.tunnelName} ${c.domain}
+# sudo cloudflared service install
+# sudo systemctl enable --now cloudflared
+
+echo "Tunnel läuft. Öffentlich erreichbar: https://${c.domain}"
+`
+    : `#!/usr/bin/env bash
+# Tunnel-Modus ist deaktiviert – diese Datei wird nicht benötigt.
+echo "Tunnel deaktiviert. Öffne stattdessen Port 80/443 in deinem Router auf den Server."
+`;
+
 
   const installScript = `#!/usr/bin/env bash
 # install.sh – auf dem Server als root ausführen
