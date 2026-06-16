@@ -201,6 +201,60 @@ export function SelfHostSetup() {
         </Field>
       </Section>
 
+      <Section title="Cloudflare Tunnel (lokales Netz → Internet)">
+        <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+          <div className="font-medium">So funktioniert es:</div>
+          <div className="text-muted-foreground">
+            Die App läuft komplett bei dir im LAN (nur an <code>127.0.0.1</code> gebunden, keine offenen Ports im Router).
+            <strong> cloudflared</strong> baut von innen eine ausgehende Verbindung zu Cloudflare auf und veröffentlicht
+            deine Domain (<code>{cfg.domain || "deine-domain.de"}</code>) öffentlich mit HTTPS. Über genau diese
+            öffentliche URL laufen dann auch Google Login &amp; alle Cloud-Dienste.
+          </div>
+        </div>
+        <Field label="Cloudflare Tunnel verwenden" hint="Wenn an: nginx bindet nur an 127.0.0.1, cloudflared veröffentlicht die Domain.">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={cfg.useTunnel}
+              onChange={(e) => {
+                const on = e.target.checked;
+                set("useTunnel", on);
+                set("localBindHost", on ? "127.0.0.1" : "0.0.0.0");
+              }}
+            />
+            <span className="text-xs text-muted-foreground">
+              {cfg.useTunnel ? "Aktiv – nur lokal erreichbar + Tunnel" : "Aus – nginx öffentlich (Port 80/443 offen)"}
+            </span>
+          </div>
+        </Field>
+        <Field label="Tunnel-Name" hint="Frei wählbar, z. B. der App-Name">
+          <Input value={cfg.tunnelName} onChange={(e) => set("tunnelName", e.target.value)} />
+        </Field>
+        <Field
+          label="Tunnel-Token (empfohlen, Dashboard-Methode)"
+          hint="Cloudflare Dashboard → Zero Trust → Networks → Tunnels → Create a tunnel → Token kopieren"
+        >
+          <Input
+            type="password"
+            placeholder="eyJhIjoi… (langer Token)"
+            value={cfg.tunnelToken}
+            onChange={(e) => set("tunnelToken", e.target.value)}
+            className="font-mono text-xs"
+          />
+        </Field>
+        <Field label="Tunnel-ID (nur bei CLI-Methode)" hint="Aus `cloudflared tunnel create <name>`. Bei Token-Methode leer lassen.">
+          <Input value={cfg.tunnelId} onChange={(e) => set("tunnelId", e.target.value)} />
+        </Field>
+        <Field label="Pfad zur Credentials-Datei (nur CLI-Methode)" hint="z. B. /etc/cloudflared/<TUNNEL-ID>.json">
+          <Input value={cfg.tunnelCredFile} onChange={(e) => set("tunnelCredFile", e.target.value)} />
+        </Field>
+        <Field label="Lokaler Bind-Host" hint="127.0.0.1 = nur Tunnel; 0.0.0.0 = auch direkt im LAN">
+          <Input value={cfg.localBindHost} onChange={(e) => set("localBindHost", e.target.value)} />
+        </Field>
+      </Section>
+
+
+
       {/* ---------- OUTPUT FILES ---------- */}
       <div className="space-y-4 pt-2 border-t">
         <h3 className="text-sm font-semibold flex items-center gap-2">
