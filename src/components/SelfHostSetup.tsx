@@ -623,10 +623,35 @@ find "$DEST" -name 'app-*.db' -mtime +30 -delete
     },
     {
       path: `/etc/nginx/sites-available/${c.domain}`,
-      description: "nginx Reverse Proxy auf den Node-Port.",
+      description: c.useTunnel
+        ? "nginx Reverse Proxy – im Tunnel-Modus nur an 127.0.0.1 gebunden, kein Port nach außen."
+        : "nginx Reverse Proxy auf den Node-Port.",
       content: nginxContent,
       icon: "file" as const,
     },
+    ...(c.useTunnel
+      ? [
+          {
+            path: "/etc/cloudflared/config.yml",
+            description:
+              "Cloudflare Tunnel Ingress – mappt deine Domain auf den lokalen Service (nur bei CLI-Methode nötig).",
+            content: cloudflaredConfig,
+            icon: "file" as const,
+          },
+          {
+            path: "/etc/systemd/system/cloudflared.service",
+            description: "systemd-Unit für cloudflared (Referenz – wird meist automatisch angelegt).",
+            content: cloudflaredService,
+            icon: "file" as const,
+          },
+          {
+            path: "cloudflared-install.sh",
+            description: "Cloudflare Tunnel installieren & starten. Domain muss in Cloudflare liegen.",
+            content: tunnelInstallScript,
+            icon: "shell" as const,
+          },
+        ]
+      : []),
     {
       path: "install.sh",
       description: "Einmaliges Setup auf einem frischen Ubuntu/Debian-Server.",
