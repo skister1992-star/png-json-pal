@@ -63,6 +63,12 @@ function defaultCfg(): Cfg {
     appUser: "app",
     appDir: "/opt/png-json-pal",
     nodeBin: "/usr/bin/node",
+    useTunnel: true,
+    tunnelName: "png-json-pal",
+    tunnelToken: "",
+    tunnelId: "",
+    tunnelCredFile: "/etc/cloudflared/tunnel.json",
+    localBindHost: "127.0.0.1",
   };
 }
 
