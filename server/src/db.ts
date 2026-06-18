@@ -51,19 +51,6 @@ if (!adminRow) {
   console.log("[db] Seeded default admin password: 'root' (please change it after first login)");
 }
 
-// Default oauth_config row.
-const oauthRow = db.prepare("SELECT id FROM oauth_config WHERE id = 1").get();
-if (!oauthRow) {
-  db.prepare(
-    `INSERT INTO oauth_config (id, google_client_id, google_client_secret, google_redirect_uri)
-     VALUES (1, ?, ?, ?)`,
-  ).run(
-    process.env.GOOGLE_CLIENT_ID ?? "",
-    process.env.GOOGLE_CLIENT_SECRET ?? "",
-    process.env.GOOGLE_REDIRECT_URI ?? "",
-  );
-}
-
 // ---------- Helpers ----------
 export function newId(): string {
   // Crypto-random hex id (16 bytes => 32 chars), enough for users.
