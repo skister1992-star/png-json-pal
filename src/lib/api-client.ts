@@ -20,9 +20,7 @@ export type AppUser = {
   provider: "google" | "email";
 };
 
-export type AppConfig = {
-  google_login_enabled: boolean;
-};
+export type AppConfig = Record<string, never>;
 
 // ───────────────────────────────────────────── Demo-Modus (localStorage) ──
 
@@ -33,11 +31,6 @@ type DemoState = {
   currentUserId: string | null;
   adminAuthed: boolean;
   adminPassword: string;
-  oauth: {
-    google_client_id: string;
-    google_client_secret: string;
-    google_redirect_uri: string;
-  };
 };
 
 function loadDemo(): DemoState {
@@ -52,11 +45,6 @@ function loadDemo(): DemoState {
     currentUserId: null,
     adminAuthed: false,
     adminPassword: "root",
-    oauth: {
-      google_client_id: "",
-      google_client_secret: "",
-      google_redirect_uri: "",
-    },
   };
 }
 function saveDemo(s: DemoState) {
@@ -138,10 +126,7 @@ export const api = {
 
   async config(): Promise<AppConfig> {
     const available = await probeBackend();
-    if (!available) {
-      const s = loadDemo();
-      return { google_login_enabled: !!s.oauth.google_client_id };
-    }
+    if (!available) return {} as AppConfig;
     return req<AppConfig>("/api/config");
   },
 
@@ -243,15 +228,17 @@ export const api = {
     }
   },
 
-  loginWithGoogle(redirectAfter?: string): void {
-    if (backendAvailable === false) {
-      // Im Demo-Modus existiert kein Server für den OAuth-Flow.
-      throw new Error(
-        "Google-Login benötigt den eigenen Server. Im Preview-Modus nicht verfügbar.",
-      );
-    }
-    const q = redirectAfter ? `?redirect=${encodeURIComponent(redirectAfter)}` : "";
-    window.location.href = `${BASE}/api/auth/google/start${q}`;
+  async loginWithGoogle(redirectAfter?: string): Promise<void> {
+    // Google login is handled exclusively by Supabase Auth.
+    const { supabase } = await import("@/integrations/supabase/client");
+    const redirectTo =
+      redirectAfter ??
+      (typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (error) throw new Error(error.message);
   },
 
   // ---- Admin ----
@@ -296,28 +283,6 @@ export const api = {
         async () => {
           const s = loadDemo();
           s.adminPassword = newPassword;
-          saveDemo(s);
-        },
-      );
-    },
-    async getOAuth() {
-      return tryReq(
-        "/api/admin/oauth",
-        {},
-        async () => loadDemo().oauth,
-      );
-    },
-    async setOAuth(cfg: {
-      google_client_id: string;
-      google_client_secret: string;
-      google_redirect_uri: string;
-    }): Promise<void> {
-      await tryReq<void>(
-        "/api/admin/oauth",
-        { method: "PUT", body: JSON.stringify(cfg) },
-        async () => {
-          const s = loadDemo();
-          s.oauth = cfg;
           saveDemo(s);
         },
       );

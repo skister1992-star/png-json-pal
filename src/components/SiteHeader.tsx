@@ -44,12 +44,7 @@ export function useSession(): AppSession {
 
 export async function signInWithGoogle() {
   try {
-    const cfg = await api.config();
-    if (!cfg.google_login_enabled) {
-      toast.error("Google-Login ist auf diesem Server nicht konfiguriert.");
-      return;
-    }
-    api.loginWithGoogle(window.location.href);
+    await api.loginWithGoogle();
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "Google-Login fehlgeschlagen");
   }
@@ -61,12 +56,6 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleEnabled, setGoogleEnabled] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    api.config().then((c) => setGoogleEnabled(c.google_login_enabled)).catch(() => {});
-  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,21 +94,17 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
           </DialogDescription>
         </DialogHeader>
 
-        {googleEnabled && (
-          <>
-            <Button variant="outline" onClick={signInWithGoogle}>
-              Mit Google fortfahren
-            </Button>
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">oder</span>
-              </div>
-            </div>
-          </>
-        )}
+        <Button variant="outline" onClick={signInWithGoogle}>
+          Mit Google fortfahren
+        </Button>
+        <div className="relative my-2">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">oder</span>
+          </div>
+        </div>
 
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1">

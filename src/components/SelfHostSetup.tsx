@@ -13,9 +13,6 @@ type Cfg = {
   dbPath: string;
   frontendDist: string;
   adminPassword: string;
-  googleClientId: string;
-  googleClientSecret: string;
-  googleRedirectUri: string;
   appUser: string;
   appDir: string;
   nodeBin: string;
@@ -57,9 +54,6 @@ function defaultCfg(): Cfg {
     dbPath: "./data/app.db",
     frontendDist: "../dist",
     adminPassword: "root",
-    googleClientId: "",
-    googleClientSecret: "",
-    googleRedirectUri: `https://${domain}/api/auth/google/callback`,
     appUser: "app",
     appDir: "/opt/png-json-pal",
     nodeBin: "/usr/bin/node",
@@ -98,17 +92,7 @@ export function SelfHostSetup() {
   }, [cfg]);
 
   const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => {
-    setCfg((p) => {
-      const next = { ...p, [k]: v };
-      // auto-update redirect URI when domain changes (only if user hasn't customized it)
-      if (k === "domain" && typeof v === "string") {
-        const expectedOld = `https://${p.domain}/api/auth/google/callback`;
-        if (p.googleRedirectUri === expectedOld || !p.googleRedirectUri) {
-          next.googleRedirectUri = `https://${v}/api/auth/google/callback`;
-        }
-      }
-      return next;
-    });
+    setCfg((p) => ({ ...p, [k]: v }));
   };
 
   const reset = () => {
@@ -178,27 +162,14 @@ export function SelfHostSetup() {
         </Field>
       </Section>
 
-      <Section title="Google OAuth (optional)">
-        <Field label="GOOGLE_CLIENT_ID" hint="Aus Google Cloud Console → Credentials">
-          <Input
-            placeholder="xxxxx.apps.googleusercontent.com"
-            value={cfg.googleClientId}
-            onChange={(e) => set("googleClientId", e.target.value)}
-          />
-        </Field>
-        <Field label="GOOGLE_CLIENT_SECRET" hint="Aus dem gleichen OAuth-Client">
-          <Input
-            type="password"
-            value={cfg.googleClientSecret}
-            onChange={(e) => set("googleClientSecret", e.target.value)}
-          />
-        </Field>
-        <Field label="GOOGLE_REDIRECT_URI" hint="Genau so in Google eintragen (Authorized redirect URIs)">
-          <Input
-            value={cfg.googleRedirectUri}
-            onChange={(e) => set("googleRedirectUri", e.target.value)}
-          />
-        </Field>
+      <Section title="Google Login">
+        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          Google-Login wird vollständig über Supabase Auth abgewickelt. Aktiviere
+          den Google-Provider im Supabase-Dashboard unter <strong>Authentication →
+          Providers → Google</strong> und trage als Site/Redirect URL deine
+          öffentliche Domain ein (z.&nbsp;B. <code>https://{cfg.domain || "deine-domain.de"}/auth/callback</code>).
+          Im Backend werden keine Google-OAuth-Credentials mehr benötigt.
+        </div>
       </Section>
 
       <Section title="Cloudflare Tunnel (lokales Netz → Internet)">
@@ -347,9 +318,8 @@ PORT=${c.port}
 DB_PATH=${c.dbPath}
 FRONTEND_DIST=${c.frontendDist}
 ADMIN_INITIAL_PASSWORD=${c.adminPassword}
-${c.googleClientId ? `GOOGLE_CLIENT_ID=${c.googleClientId}` : "# GOOGLE_CLIENT_ID="}
-${c.googleClientSecret ? `GOOGLE_CLIENT_SECRET=${c.googleClientSecret}` : "# GOOGLE_CLIENT_SECRET="}
-GOOGLE_REDIRECT_URI=${c.googleRedirectUri}
+# Google-Login wird über Supabase Auth gemacht (siehe Supabase-Dashboard).
+# Es werden keine GOOGLE_CLIENT_* Variablen im Backend mehr benötigt.
 `;
 
   const frontendEnvContent = `# .env  (Frontend / Vite – im Projekt-Root)

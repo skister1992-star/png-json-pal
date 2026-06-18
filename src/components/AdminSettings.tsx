@@ -84,7 +84,7 @@ export function AdminSettings() {
               <div>
                 <DialogTitle>Admin Einstellungen</DialogTitle>
                 <DialogDescription>
-                  Verwaltung des eigenen Servers (Nutzer, Passwort, Google-OAuth).
+                  Verwaltung des eigenen Servers (Nutzer, Passwort).
                 </DialogDescription>
               </div>
               <ServerStatus />
@@ -108,16 +108,12 @@ export function AdminSettings() {
               <Button type="submit" className="w-full" disabled={loggingIn}>
                 {loggingIn ? "Wird geprüft…" : "Anmelden"}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Standard nach Erstinstallation: <code>root</code>. Direkt nach dem ersten Login ändern.
-              </p>
             </form>
           ) : (
             <Tabs defaultValue="users">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="users">Nutzer</TabsTrigger>
                 <TabsTrigger value="password">Passwort</TabsTrigger>
-                <TabsTrigger value="google">Google OAuth</TabsTrigger>
                 <TabsTrigger value="setup">Self-Host</TabsTrigger>
               </TabsList>
 
@@ -127,10 +123,6 @@ export function AdminSettings() {
 
               <TabsContent value="password" className="pt-4">
                 <PasswordPanel />
-              </TabsContent>
-
-              <TabsContent value="google" className="pt-4">
-                <GoogleOAuthPanel />
               </TabsContent>
 
               <TabsContent value="setup" className="pt-4">
@@ -299,85 +291,6 @@ function PasswordPanel() {
   );
 }
 
-// ----------------- GOOGLE OAUTH PANEL -----------------
-
-function GoogleOAuthPanel() {
-  const [cfg, setCfg] = useState({
-    google_client_id: "",
-    google_client_secret: "",
-    google_redirect_uri:
-      typeof window !== "undefined" ? `${window.location.origin}/api/auth/google/callback` : "",
-  });
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    void api.admin
-      .getOAuth()
-      .then((c) =>
-        setCfg((prev) => ({
-          ...prev,
-          ...(c.google_client_id ? { google_client_id: c.google_client_id } : {}),
-          ...(c.google_client_secret ? { google_client_secret: c.google_client_secret } : {}),
-          ...(c.google_redirect_uri ? { google_redirect_uri: c.google_redirect_uri } : {}),
-        })),
-      )
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  async function save() {
-    setBusy(true);
-    try {
-      await api.admin.setOAuth(cfg);
-      toast.success("Google OAuth gespeichert");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (loading) return <div className="text-sm text-muted-foreground">Lade…</div>;
-
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Eigene Google OAuth-Credentials für „Login mit Google" und die optionale
-        Google-Drive-Anbindung. Erstellen in der Google Cloud Console →
-        „APIs & Services" → „Credentials" → OAuth 2.0 Client ID (Web).
-      </p>
-      <div className="space-y-1">
-        <Label>Redirect URI (so in Google eintragen)</Label>
-        <Input
-          value={cfg.google_redirect_uri}
-          onChange={(e) => setCfg({ ...cfg, google_redirect_uri: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label>Client ID</Label>
-        <Input
-          placeholder="xxxxx.apps.googleusercontent.com"
-          value={cfg.google_client_id}
-          onChange={(e) => setCfg({ ...cfg, google_client_id: e.target.value })}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label>Client Secret</Label>
-        <Input
-          type="password"
-          value={cfg.google_client_secret}
-          onChange={(e) => setCfg({ ...cfg, google_client_secret: e.target.value })}
-        />
-      </div>
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={busy}>
-          {busy ? "Speichern…" : "Speichern"}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 // ----------------- SERVER STATUS -----------------
 
