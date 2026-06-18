@@ -238,15 +238,17 @@ export const api = {
     }
   },
 
-  loginWithGoogle(redirectAfter?: string): void {
-    if (backendAvailable === false) {
-      // Im Demo-Modus existiert kein Server für den OAuth-Flow.
-      throw new Error(
-        "Google-Login benötigt den eigenen Server. Im Preview-Modus nicht verfügbar.",
-      );
-    }
-    const q = redirectAfter ? `?redirect=${encodeURIComponent(redirectAfter)}` : "";
-    window.location.href = `${BASE}/api/auth/google/start${q}`;
+  async loginWithGoogle(redirectAfter?: string): Promise<void> {
+    // Google login is handled exclusively by Supabase Auth.
+    const { supabase } = await import("@/integrations/supabase/client");
+    const redirectTo =
+      redirectAfter ??
+      (typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    if (error) throw new Error(error.message);
   },
 
   // ---- Admin ----
