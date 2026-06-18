@@ -29,7 +29,6 @@ if (process.env.NODE_ENV !== "production") {
 // --- API ---
 app.use("/api/config", configRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/auth/google", googleRouter);
 app.use("/api/admin", adminRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
