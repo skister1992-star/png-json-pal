@@ -13,9 +13,6 @@ type Cfg = {
   dbPath: string;
   frontendDist: string;
   adminPassword: string;
-  googleClientId: string;
-  googleClientSecret: string;
-  googleRedirectUri: string;
   appUser: string;
   appDir: string;
   nodeBin: string;
