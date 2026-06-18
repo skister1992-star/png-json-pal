@@ -20,9 +20,7 @@ export type AppUser = {
   provider: "google" | "email";
 };
 
-export type AppConfig = {
-  google_login_enabled: boolean;
-};
+export type AppConfig = Record<string, never>;
 
 // ───────────────────────────────────────────── Demo-Modus (localStorage) ──
 
