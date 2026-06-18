@@ -45,11 +45,6 @@ function loadDemo(): DemoState {
     currentUserId: null,
     adminAuthed: false,
     adminPassword: "root",
-    oauth: {
-      google_client_id: "",
-      google_client_secret: "",
-      google_redirect_uri: "",
-    },
   };
 }
 function saveDemo(s: DemoState) {
