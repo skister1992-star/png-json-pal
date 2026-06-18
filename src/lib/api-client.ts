@@ -297,28 +297,6 @@ export const api = {
         },
       );
     },
-    async getOAuth() {
-      return tryReq(
-        "/api/admin/oauth",
-        {},
-        async () => loadDemo().oauth,
-      );
-    },
-    async setOAuth(cfg: {
-      google_client_id: string;
-      google_client_secret: string;
-      google_redirect_uri: string;
-    }): Promise<void> {
-      await tryReq<void>(
-        "/api/admin/oauth",
-        { method: "PUT", body: JSON.stringify(cfg) },
-        async () => {
-          const s = loadDemo();
-          s.oauth = cfg;
-          saveDemo(s);
-        },
-      );
-    },
     async listUsers(): Promise<AppUser[]> {
       return tryReq<AppUser[]>(
         "/api/admin/users",
