@@ -125,9 +125,11 @@ export function UserStorageSettings() {
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Speichert verschlüsselt im versteckten App-Ordner deines Google Drive.
-                    Erfordert eine vom Admin hinterlegte Google-OAuth-Konfiguration.
+                    Speichert deine Inhalte im versteckten App-Ordner (appDataFolder) deines
+                    Google Drive – getrennt nach <code>lorebooks/</code> und <code>usercards/</code>.
+                    Kein Client-Secret, kein Server-OAuth.
                   </div>
+
                 </div>
                 <div className="flex flex-col gap-2 items-end">
                   {gConnected ? (
