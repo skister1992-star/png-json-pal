@@ -108,9 +108,6 @@ export function AdminSettings() {
               <Button type="submit" className="w-full" disabled={loggingIn}>
                 {loggingIn ? "Wird geprüft…" : "Anmelden"}
               </Button>
-              <p className="text-xs text-muted-foreground">
-                Standard nach Erstinstallation: <code>root</code>. Direkt nach dem ersten Login ändern.
-              </p>
             </form>
           ) : (
             <Tabs defaultValue="users">
