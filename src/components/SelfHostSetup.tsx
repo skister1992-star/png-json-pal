@@ -98,17 +98,7 @@ export function SelfHostSetup() {
   }, [cfg]);
 
   const set = <K extends keyof Cfg>(k: K, v: Cfg[K]) => {
-    setCfg((p) => {
-      const next = { ...p, [k]: v };
-      // auto-update redirect URI when domain changes (only if user hasn't customized it)
-      if (k === "domain" && typeof v === "string") {
-        const expectedOld = `https://${p.domain}/api/auth/google/callback`;
-        if (p.googleRedirectUri === expectedOld || !p.googleRedirectUri) {
-          next.googleRedirectUri = `https://${v}/api/auth/google/callback`;
-        }
-      }
-      return next;
-    });
+    setCfg((p) => ({ ...p, [k]: v }));
   };
 
   const reset = () => {
