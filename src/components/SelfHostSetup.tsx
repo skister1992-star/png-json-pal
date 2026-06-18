@@ -339,7 +339,10 @@ ADMIN_INITIAL_PASSWORD=${c.adminPassword}
 # damit sie im Browser-Bundle landen.
 VITE_API_BASE_URL=https://${c.domain}
 VITE_APP_NAME=PNG JSON Pal
+# Optional: Google Drive als Speicher (nur Client-ID, KEIN Client-Secret!)
+# VITE_GOOGLE_CLIENT_ID=xxxxxxxxx.apps.googleusercontent.com
 `;
+
 
   const viteConfigContent = `// vite.config.ts  (Projekt-Root) – Self-Host-Variante
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
