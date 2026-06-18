@@ -334,9 +334,8 @@ PORT=${c.port}
 DB_PATH=${c.dbPath}
 FRONTEND_DIST=${c.frontendDist}
 ADMIN_INITIAL_PASSWORD=${c.adminPassword}
-${c.googleClientId ? `GOOGLE_CLIENT_ID=${c.googleClientId}` : "# GOOGLE_CLIENT_ID="}
-${c.googleClientSecret ? `GOOGLE_CLIENT_SECRET=${c.googleClientSecret}` : "# GOOGLE_CLIENT_SECRET="}
-GOOGLE_REDIRECT_URI=${c.googleRedirectUri}
+# Google-Login wird über Supabase Auth gemacht (siehe Supabase-Dashboard).
+# Es werden keine GOOGLE_CLIENT_* Variablen im Backend mehr benötigt.
 `;
 
   const frontendEnvContent = `# .env  (Frontend / Vite – im Projekt-Root)
