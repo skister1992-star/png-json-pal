@@ -136,10 +136,7 @@ export const api = {
 
   async config(): Promise<AppConfig> {
     const available = await probeBackend();
-    if (!available) {
-      const s = loadDemo();
-      return { google_login_enabled: !!s.oauth.google_client_id };
-    }
+    if (!available) return {} as AppConfig;
     return req<AppConfig>("/api/config");
   },
 
