@@ -50,37 +50,6 @@ adminRouter.put("/password", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- OAuth config ----
-
-const oauthSchema = z.object({
-  google_client_id: z.string().max(500),
-  google_client_secret: z.string().max(500),
-  google_redirect_uri: z.string().max(500),
-});
-
-adminRouter.get("/oauth", requireAdmin, (_req, res) => {
-  const row = db
-    .prepare(
-      "SELECT google_client_id, google_client_secret, google_redirect_uri FROM oauth_config WHERE id = 1",
-    )
-    .get();
-  res.json(row);
-});
-
-adminRouter.put("/oauth", requireAdmin, (req, res) => {
-  const parsed = oauthSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_input" });
-  db.prepare(
-    `UPDATE oauth_config SET google_client_id = ?, google_client_secret = ?,
-       google_redirect_uri = ?, updated_at = datetime('now') WHERE id = 1`,
-  ).run(
-    parsed.data.google_client_id,
-    parsed.data.google_client_secret,
-    parsed.data.google_redirect_uri,
-  );
-  res.json({ ok: true });
-});
-
 // ---- Users management ----
 
 adminRouter.get("/users", requireAdmin, (_req, res) => {
