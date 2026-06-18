@@ -178,27 +178,14 @@ export function SelfHostSetup() {
         </Field>
       </Section>
 
-      <Section title="Google OAuth (optional)">
-        <Field label="GOOGLE_CLIENT_ID" hint="Aus Google Cloud Console → Credentials">
-          <Input
-            placeholder="xxxxx.apps.googleusercontent.com"
-            value={cfg.googleClientId}
-            onChange={(e) => set("googleClientId", e.target.value)}
-          />
-        </Field>
-        <Field label="GOOGLE_CLIENT_SECRET" hint="Aus dem gleichen OAuth-Client">
-          <Input
-            type="password"
-            value={cfg.googleClientSecret}
-            onChange={(e) => set("googleClientSecret", e.target.value)}
-          />
-        </Field>
-        <Field label="GOOGLE_REDIRECT_URI" hint="Genau so in Google eintragen (Authorized redirect URIs)">
-          <Input
-            value={cfg.googleRedirectUri}
-            onChange={(e) => set("googleRedirectUri", e.target.value)}
-          />
-        </Field>
+      <Section title="Google Login">
+        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          Google-Login wird vollständig über Supabase Auth abgewickelt. Aktiviere
+          den Google-Provider im Supabase-Dashboard unter <strong>Authentication →
+          Providers → Google</strong> und trage als Site/Redirect URL deine
+          öffentliche Domain ein (z.&nbsp;B. <code>https://{cfg.domain || "deine-domain.de"}/auth/callback</code>).
+          Im Backend werden keine Google-OAuth-Credentials mehr benötigt.
+        </div>
       </Section>
 
       <Section title="Cloudflare Tunnel (lokales Netz → Internet)">
