@@ -30,13 +30,7 @@ db.exec(`
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  CREATE TABLE IF NOT EXISTS oauth_config (
-    id                   INTEGER PRIMARY KEY CHECK (id = 1),
-    google_client_id     TEXT NOT NULL DEFAULT '',
-    google_client_secret TEXT NOT NULL DEFAULT '',
-    google_redirect_uri  TEXT NOT NULL DEFAULT '',
-    updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+  -- Google OAuth handled by Supabase Auth; no oauth_config table.
 
   CREATE TABLE IF NOT EXISTS password_resets (
     token      TEXT PRIMARY KEY,
