@@ -111,10 +111,9 @@ export function AdminSettings() {
             </form>
           ) : (
             <Tabs defaultValue="users">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="users">Nutzer</TabsTrigger>
                 <TabsTrigger value="password">Passwort</TabsTrigger>
-                <TabsTrigger value="google">Google OAuth</TabsTrigger>
                 <TabsTrigger value="setup">Self-Host</TabsTrigger>
               </TabsList>
 
@@ -124,10 +123,6 @@ export function AdminSettings() {
 
               <TabsContent value="password" className="pt-4">
                 <PasswordPanel />
-              </TabsContent>
-
-              <TabsContent value="google" className="pt-4">
-                <GoogleOAuthPanel />
               </TabsContent>
 
               <TabsContent value="setup" className="pt-4">
