@@ -162,15 +162,27 @@ export function SelfHostSetup() {
         </Field>
       </Section>
 
-      <Section title="Google Login">
-        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-          Google-Login wird vollständig über Supabase Auth abgewickelt. Aktiviere
-          den Google-Provider im Supabase-Dashboard unter <strong>Authentication →
-          Providers → Google</strong> und trage als Site/Redirect URL deine
-          öffentliche Domain ein (z.&nbsp;B. <code>https://{cfg.domain || "deine-domain.de"}/auth/callback</code>).
-          Im Backend werden keine Google-OAuth-Credentials mehr benötigt.
+      <Section title="Google Login &amp; Google Drive">
+        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground space-y-2">
+          <div>
+            <strong>Login:</strong> Google-Login wird vollständig über Supabase Auth abgewickelt.
+            Aktiviere den Google-Provider im Supabase-Dashboard unter <strong>Authentication →
+            Providers → Google</strong> und trage als Redirect-URL die in Supabase angezeigte
+            Callback-URL bei Google ein. Im Backend dieser App werden keine
+            GOOGLE_CLIENT_* Variablen mehr benötigt.
+          </div>
+          <div>
+            <strong>Google Drive (optional, als Speicher):</strong> Wenn Nutzer ihre Daten in
+            Google Drive ablegen wollen, lege im Google Cloud Console eine zweite (öffentliche)
+            <em> OAuth 2.0 Web</em> Client-ID an, erlaube als Origin
+            <code> https://{cfg.domain || "deine-domain.de"}</code> und trage die Client-ID
+            im Frontend-<code>.env</code> als <code>VITE_GOOGLE_CLIENT_ID</code> ein.
+            Ein <strong>Client-Secret wird nicht verwendet</strong> – das Token wird per
+            Google Identity Services direkt im Browser angefordert (Scope nur <code>drive.appdata</code>).
+          </div>
         </div>
       </Section>
+
 
       <Section title="Cloudflare Tunnel (lokales Netz → Internet)">
         <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
