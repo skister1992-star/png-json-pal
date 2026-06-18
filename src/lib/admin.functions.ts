@@ -267,12 +267,14 @@ export const adminSendPasswordReset = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ---------- OAuth app config (Google/MS/Dropbox client IDs) ----------
+// ---------- OAuth app config (MS / Dropbox client IDs only) ----------
+// Google is intentionally NOT included here — Google login is handled by
+// Supabase Auth, and Google Drive uses a public VITE_GOOGLE_CLIENT_ID from
+// the frontend env. No google_client_id / client_secret is ever stored.
 export const adminSetOAuthConfig = createServerFn({ method: "POST" })
   .inputValidator(
     (d: {
       token: string;
-      google_client_id: string;
       microsoft_client_id: string;
       microsoft_tenant: string;
       dropbox_app_key: string;
@@ -283,7 +285,6 @@ export const adminSetOAuthConfig = createServerFn({ method: "POST" })
     const { error } = await admin
       .from("oauth_app_config")
       .update({
-        google_client_id: data.google_client_id,
         microsoft_client_id: data.microsoft_client_id,
         microsoft_tenant: data.microsoft_tenant || "common",
         dropbox_app_key: data.dropbox_app_key,
