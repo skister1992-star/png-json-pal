@@ -84,7 +84,7 @@ export function AdminSettings() {
               <div>
                 <DialogTitle>Admin Einstellungen</DialogTitle>
                 <DialogDescription>
-                  Verwaltung des eigenen Servers (Nutzer, Passwort, Google-OAuth).
+                  Verwaltung des eigenen Servers (Nutzer, Passwort).
                 </DialogDescription>
               </div>
               <ServerStatus />
