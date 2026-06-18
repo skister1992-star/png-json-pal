@@ -56,12 +56,6 @@ export function LoginDialog({ trigger }: { trigger?: ReactNode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleEnabled, setGoogleEnabled] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    api.config().then((c) => setGoogleEnabled(c.google_login_enabled)).catch(() => {});
-  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
