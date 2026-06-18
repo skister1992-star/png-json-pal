@@ -31,11 +31,6 @@ type DemoState = {
   currentUserId: string | null;
   adminAuthed: boolean;
   adminPassword: string;
-  oauth: {
-    google_client_id: string;
-    google_client_secret: string;
-    google_redirect_uri: string;
-  };
 };
 
 function loadDemo(): DemoState {
