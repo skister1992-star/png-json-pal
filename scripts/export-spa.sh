@@ -26,30 +26,34 @@ mkdir -p "$OUT"
 # 1. Copy source tree (excluding all server-only / lovable-only files)
 # ---------------------------------------------------------------------------
 echo "==> Copying source files (stripping server/lovable-only modules)"
-rsync -a \
-  --exclude 'node_modules' \
-  --exclude 'dist' \
-  --exclude 'dist-selfhost' \
-  --exclude '.output' \
-  --exclude 'bun.lock' \
-  --exclude 'bunfig.toml' \
-  --exclude 'package-lock.json' \
-  --exclude 'package.json' \
-  --exclude 'vite.config.ts' \
-  --exclude 'index.html' \
-  --exclude 'src/server.ts' \
-  --exclude 'src/start.ts' \
-  --exclude 'src/routeTree.gen.ts' \
-  --exclude 'src/integrations/lovable' \
-  --exclude 'src/integrations/supabase/auth-attacher.ts' \
-  --exclude 'src/integrations/supabase/auth-middleware.ts' \
-  --exclude 'src/integrations/supabase/client.server.ts' \
-  --exclude 'src/lib/admin.functions.ts' \
-  --exclude 'src/lib/config.server.ts' \
-  --exclude 'src/lib/lovable-error-reporting.ts' \
-  --exclude 'src/lib/error-page.ts' \
-  --exclude 'src/lib/api/example.functions.ts' \
-  "$ROOT/" "$OUT/"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a \
+    --exclude 'node_modules' --exclude 'dist' --exclude 'dist-selfhost' \
+    --exclude '.output' --exclude 'bun.lock' --exclude 'bunfig.toml' \
+    --exclude 'package-lock.json' --exclude 'package.json' \
+    --exclude 'vite.config.ts' --exclude 'index.html' \
+    "$ROOT/" "$OUT/"
+else
+  # Fallback: tar streaming
+  ( cd "$ROOT" && tar \
+      --exclude='./node_modules' --exclude='./dist' --exclude='./dist-selfhost' \
+      --exclude='./.output' --exclude='./bun.lock' --exclude='./bunfig.toml' \
+      --exclude='./package-lock.json' --exclude='./package.json' \
+      --exclude='./vite.config.ts' --exclude='./index.html' \
+      -cf - . ) | ( cd "$OUT" && tar -xf - )
+fi
+
+# Strip server-only / lovable-only files after copy
+rm -f  "$OUT/src/server.ts" "$OUT/src/start.ts" "$OUT/src/routeTree.gen.ts"
+rm -rf "$OUT/src/integrations/lovable"
+rm -f  "$OUT/src/integrations/supabase/auth-attacher.ts" \
+       "$OUT/src/integrations/supabase/auth-middleware.ts" \
+       "$OUT/src/integrations/supabase/client.server.ts"
+rm -f  "$OUT/src/lib/admin.functions.ts" \
+       "$OUT/src/lib/config.server.ts" \
+       "$OUT/src/lib/lovable-error-reporting.ts" \
+       "$OUT/src/lib/error-page.ts" \
+       "$OUT/src/lib/api/example.functions.ts"
 
 # Remove now-empty directories
 rmdir "$OUT/src/integrations/lovable" 2>/dev/null || true
