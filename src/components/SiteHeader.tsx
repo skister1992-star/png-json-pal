@@ -44,12 +44,7 @@ export function useSession(): AppSession {
 
 export async function signInWithGoogle() {
   try {
-    const cfg = await api.config();
-    if (!cfg.google_login_enabled) {
-      toast.error("Google-Login ist auf diesem Server nicht konfiguriert.");
-      return;
-    }
-    api.loginWithGoogle(window.location.href);
+    await api.loginWithGoogle();
   } catch (e) {
     toast.error(e instanceof Error ? e.message : "Google-Login fehlgeschlagen");
   }
