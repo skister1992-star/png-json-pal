@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { api, type AppUser } from "@/lib/api-client";
 import { SelfHostSetup } from "@/components/SelfHostSetup";
+import { RolesPanel } from "@/components/RolesPanel";
 
 function fmt(d: string | null | undefined) {
   if (!d) return "—";
