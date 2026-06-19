@@ -33,7 +33,7 @@ export function UserStorageSettings() {
     if (!open) return;
     setMode(getStorageMode());
     void getMyRoles().then(setRoles);
-  }, [open, session?.id]);
+  }, [open, session?.user?.id]);
 
   useEffect(() => {
     const onAuth = () => setTick((t) => t + 1);
