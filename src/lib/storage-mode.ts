@@ -2,6 +2,7 @@
 
 export type StorageMode =
   | "local"
+  | "server"
   | "custom"
   | "gdrive"
   | "onedrive"
@@ -29,7 +30,7 @@ export type WebDAVConfig = {
 const EMPTY_CUSTOM: CustomCloudConfig = { url: "", anonKey: "", email: "", password: "" };
 const EMPTY_WEBDAV: WebDAVConfig = { baseUrl: "", username: "", password: "", folder: "st-cs" };
 
-const VALID_MODES: StorageMode[] = ["local", "custom", "gdrive", "onedrive", "dropbox", "webdav"];
+const VALID_MODES: StorageMode[] = ["local", "server", "custom", "gdrive", "onedrive", "dropbox", "webdav"];
 
 export function getStorageMode(): StorageMode {
   if (typeof window === "undefined") return "local";

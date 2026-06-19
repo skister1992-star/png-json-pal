@@ -236,7 +236,13 @@ export const api = {
       (typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: redirectTo ? { redirectTo } : undefined,
+      options: {
+        redirectTo,
+        // Request Drive appdata scope so we can store user docs using the
+        // same Supabase-issued OAuth access token (no GIS popup).
+        scopes: "https://www.googleapis.com/auth/drive.appdata",
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
     });
     if (error) throw new Error(error.message);
   },

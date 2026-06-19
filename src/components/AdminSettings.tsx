@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { api, type AppUser } from "@/lib/api-client";
 import { SelfHostSetup } from "@/components/SelfHostSetup";
+import { RolesPanel } from "@/components/RolesPanel";
 
 function fmt(d: string | null | undefined) {
   if (!d) return "—";
@@ -110,12 +111,17 @@ export function AdminSettings() {
               </Button>
             </form>
           ) : (
-            <Tabs defaultValue="users">
-              <TabsList className="grid w-full grid-cols-3">
+            <Tabs defaultValue="roles">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="roles">Rollen</TabsTrigger>
                 <TabsTrigger value="users">Nutzer</TabsTrigger>
                 <TabsTrigger value="password">Passwort</TabsTrigger>
                 <TabsTrigger value="setup">Self-Host</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="roles" className="pt-4">
+                <RolesPanel />
+              </TabsContent>
 
               <TabsContent value="users" className="pt-4">
                 <UsersPanel onAuthLost={() => setAuthed(false)} />

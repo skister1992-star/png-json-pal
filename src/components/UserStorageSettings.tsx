@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Database, Cloud, CloudOff, CheckCircle2 } from "lucide-react";
+import { Database, Cloud, CloudOff, CheckCircle2, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,8 +14,7 @@ import {
   setStorageMode,
   type StorageMode,
 } from "@/lib/storage-mode";
-import { connectGoogleDrive, disconnectGoogleDrive } from "@/lib/cloud-providers";
-import { getStoredToken, isTokenValid } from "@/lib/cloud-providers/oauth";
+import { connectGoogleDrive, disconnectGoogleDrive, getMyRoles, type AppRole } from "@/lib/cloud-providers";
 import { useSession } from "@/components/SiteHeader";
 
 export function UserStorageSettings() {
@@ -24,11 +23,15 @@ export function UserStorageSettings() {
   const [mode, setMode] = useState<StorageMode>("local");
   const [connecting, setConnecting] = useState(false);
   const [tick, setTick] = useState(0);
+  const [roles, setRoles] = useState<AppRole[]>([]);
+  const approved = roles.includes("approved") || roles.includes("admin");
+  const hasGdriveToken = !!session;
 
   useEffect(() => {
     if (!open) return;
     setMode(getStorageMode());
-  }, [open]);
+    void getMyRoles().then(setRoles);
+  }, [open, session?.user?.id]);
 
   useEffect(() => {
     const onAuth = () => setTick((t) => t + 1);
@@ -36,15 +39,15 @@ export function UserStorageSettings() {
     return () => window.removeEventListener("cloud-auth-change", onAuth);
   }, []);
 
-  // Auto-fallback to local when Drive token expires.
+  // Auto-fallback to local if Drive mode is active but no Supabase session.
   useEffect(() => {
     const m = getStorageMode();
-    if (m === "gdrive" && !isTokenValid(getStoredToken("gdrive"))) {
+    if (m === "gdrive" && !session) {
       setStorageMode("local");
       setMode("local");
-      toast.message("Google Drive Verbindung abgelaufen – zurück auf Lokal.");
+      toast.message("Google Drive Verbindung verloren – zurück auf Lokal.");
     }
-  }, [tick]);
+  }, [tick, session]);
 
   if (!session) return null;
 
@@ -77,7 +80,9 @@ export function UserStorageSettings() {
     setTick((t) => t + 1);
   }
 
-  const gConnected = isTokenValid(getStoredToken("gdrive"));
+  // Drive is "connected" when a Supabase session exists; the provider_token
+  // comes from Supabase Google OAuth.
+  const gConnected = hasGdriveToken;
 
   return (
     <>
@@ -109,6 +114,38 @@ export function UserStorageSettings() {
               actionDisabled={mode === "local"}
               onAction={() => activate("local", "Lokal")}
             />
+
+            <div
+              className={`rounded-md border p-3 ${mode === "server" ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="font-medium text-sm flex items-center gap-2">
+                    <Server className="h-4 w-4" />
+                    Server (Lovable Cloud)
+                    {mode === "server" && <ActiveBadge />}
+                    {!approved && (
+                      <span className="text-[11px] text-amber-600">
+                        Freigabe durch Admin erforderlich
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Daten werden verschlüsselt auf dem Server gespeichert und sind über
+                    alle Geräte verfügbar. Nur freigegebene Konten (Rolle <code>approved</code>
+                    oder <code>admin</code>) können diese Option nutzen.
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => activate("server", "Server")}
+                  disabled={!approved || mode === "server"}
+                >
+                  {mode === "server" ? "Aktiv" : "Als Speicherort verwenden"}
+                </Button>
+              </div>
+            </div>
+
 
             <div
               className={`rounded-md border p-3 ${mode === "gdrive" ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}
