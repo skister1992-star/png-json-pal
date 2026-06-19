@@ -41,15 +41,15 @@ export function UserStorageSettings() {
     return () => window.removeEventListener("cloud-auth-change", onAuth);
   }, []);
 
-  // Auto-fallback to local when Drive token expires.
+  // Auto-fallback to local if Drive mode is active but no Supabase session.
   useEffect(() => {
     const m = getStorageMode();
-    if (m === "gdrive" && !isTokenValid(getStoredToken("gdrive"))) {
+    if (m === "gdrive" && !session) {
       setStorageMode("local");
       setMode("local");
-      toast.message("Google Drive Verbindung abgelaufen – zurück auf Lokal.");
+      toast.message("Google Drive Verbindung verloren – zurück auf Lokal.");
     }
-  }, [tick]);
+  }, [tick, session]);
 
   if (!session) return null;
 
