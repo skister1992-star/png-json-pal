@@ -15,9 +15,7 @@ import {
   type StorageMode,
 } from "@/lib/storage-mode";
 import { connectGoogleDrive, disconnectGoogleDrive, getMyRoles, type AppRole } from "@/lib/cloud-providers";
-import { getStoredToken, isTokenValid } from "@/lib/cloud-providers/oauth";
 import { useSession } from "@/components/SiteHeader";
-import { supabase } from "@/integrations/supabase/client";
 
 export function UserStorageSettings() {
   const session = useSession();
