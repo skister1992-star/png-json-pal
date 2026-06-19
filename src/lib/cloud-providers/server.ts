@@ -18,7 +18,7 @@ export const serverAdapter: CloudAdapter = {
     const roles = await getMyRoles();
     if (!roles.includes("approved") && !roles.includes("admin")) {
       throw new Error(
-        "Dein Konto ist noch nicht für die Server-Speicherung freigegeben. Bitte den Admin um die Rolle „approved".",
+        'Dein Konto ist noch nicht für die Server-Speicherung freigegeben. Bitte den Admin um die Rolle "approved".',
       );
     }
   },
