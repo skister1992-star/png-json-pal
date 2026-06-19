@@ -1,9 +1,12 @@
-// Google Drive adapter — uses Google Identity Services (GIS) implicit token
-// flow scoped ONLY to drive.appdata. No client_secret, no backend OAuth
-// exchange, no PKCE/code flow. The Google client_id is a PUBLIC value taken
-// from VITE_GOOGLE_CLIENT_ID. Authentication of the *user* is handled by
-// Supabase — this module only obtains a Drive access token on demand to act
-// as the storage layer.
+// Google Drive adapter — uses the Google OAuth access token issued by
+// Supabase Auth (provider_token from the user's Supabase session).
+//
+// Authentication is handled exclusively by Supabase Google OAuth. No GIS
+// popup, no separate Google sign-in, no client_secret, no manual token
+// exchange. The Supabase Google provider must be configured with the
+// `https://www.googleapis.com/auth/drive.appdata` scope (we request it at
+// signInWithOAuth time in src/lib/api-client.ts).
+
 import {
   type CloudAdapter,
   type DocRow,
@@ -12,118 +15,59 @@ import {
   parseDocFilename,
   uuid,
 } from "./types";
-import { getStoredToken, isTokenValid, setStoredToken } from "./oauth";
+import { supabase } from "@/integrations/supabase/client";
 
-const SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 const API = "https://www.googleapis.com/drive/v3";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 
-// Folder names inside the hidden appDataFolder. Logical "/AppData/<folder>/".
 const FOLDER_FOR_TABLE: Record<TableName, string> = {
   lorebooks: "lorebooks",
   user_cards: "usercards",
 };
 
-// ---------- Google Identity Services token client ----------
-
-type TokenResponse = {
-  access_token?: string;
-  expires_in?: number | string;
-  error?: string;
-  error_description?: string;
-};
-
-type GisTokenClient = {
-  requestAccessToken: (overrides?: { prompt?: string }) => void;
-};
-
-type GisGlobal = {
-  accounts: {
-    oauth2: {
-      initTokenClient: (config: {
-        client_id: string;
-        scope: string;
-        callback: (resp: TokenResponse) => void;
-        error_callback?: (err: { type?: string; message?: string }) => void;
-      }) => GisTokenClient;
-    };
-  };
-};
-
-declare global {
-  interface Window {
-    google?: GisGlobal;
-  }
-}
-
-function getClientId(): string {
-  const id = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "";
-  if (!id) {
-    throw new Error(
-      "VITE_GOOGLE_CLIENT_ID ist nicht gesetzt. Trage eine öffentliche Google OAuth Client-ID (Web) in die .env ein.",
-    );
-  }
-  return id;
-}
-
-let gisLoading: Promise<void> | null = null;
-function loadGis(): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
-  if (window.google?.accounts?.oauth2) return Promise.resolve();
-  if (gisLoading) return gisLoading;
-  gisLoading = new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true;
-    s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => {
-      gisLoading = null;
-      reject(new Error("Google Identity Services konnte nicht geladen werden."));
-    };
-    document.head.appendChild(s);
-  });
-  return gisLoading;
-}
-
-async function requestNewAccessToken(prompt: "" | "consent" = ""): Promise<void> {
-  const clientId = getClientId();
-  await loadGis();
-  await new Promise<void>((resolve, reject) => {
-    const client = window.google!.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPE,
-      callback: (resp) => {
-        if (resp.error || !resp.access_token) {
-          return reject(new Error(resp.error_description || resp.error || "OAuth fehlgeschlagen"));
-        }
-        const expiresIn = Number(resp.expires_in) || 3600;
-        setStoredToken("gdrive", {
-          accessToken: resp.access_token,
-          expiresAt: Date.now() + expiresIn * 1000,
-          tokenType: "Bearer",
-        });
-        resolve();
-      },
-      error_callback: (err) =>
-        reject(new Error(err?.message || "Google Drive Anmeldung abgebrochen")),
-    });
-    client.requestAccessToken(prompt ? { prompt } : undefined);
-  });
-}
+// ---------- Token from Supabase session ----------
 
 async function getAccessToken(): Promise<string> {
-  const tok = getStoredToken("gdrive");
-  if (isTokenValid(tok)) return tok!.accessToken;
-  throw new Error("Nicht mit Google Drive verbunden");
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error("Supabase Session konnte nicht gelesen werden: " + error.message);
+  const session = data.session;
+  if (!session) {
+    throw new Error("Nicht eingeloggt. Bitte mit Google über Supabase anmelden.");
+  }
+  const token = session.provider_token;
+  if (!token) {
+    throw new Error(
+      "Kein Google OAuth Token vorhanden. Bitte einmal abmelden und erneut mit Google anmelden (Scope drive.appdata).",
+    );
+  }
+  return token;
 }
 
+/**
+ * Re-runs Supabase Google OAuth so the user grants the drive.appdata scope.
+ * After redirect, the session contains a fresh provider_token.
+ */
 export async function connectGoogleDrive(): Promise<void> {
-  await requestNewAccessToken("consent");
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      scopes: "https://www.googleapis.com/auth/drive.appdata",
+      queryParams: { access_type: "offline", prompt: "consent" },
+    },
+  });
+  if (error) throw new Error(error.message);
 }
 
-export function disconnectGoogleDrive() {
-  setStoredToken("gdrive", null);
+/**
+ * "Disconnecting" Google Drive without breaking Supabase auth means signing
+ * out of the Supabase session (which also drops the provider_token). The
+ * user can re-login via Google any time.
+ */
+export async function disconnectGoogleDrive(): Promise<void> {
+  await supabase.auth.signOut();
   folderIdCache = {};
 }
 
@@ -135,8 +79,9 @@ async function gfetch(path: string, init?: RequestInit) {
   headers.set("Authorization", `Bearer ${token}`);
   const resp = await fetch(path, { ...init, headers });
   if (resp.status === 401) {
-    setStoredToken("gdrive", null);
-    throw new Error("Google Drive Sitzung abgelaufen — bitte neu verbinden.");
+    throw new Error(
+      "Google Drive Token abgelaufen — bitte abmelden und erneut mit Google einloggen.",
+    );
   }
   return resp;
 }
@@ -159,7 +104,6 @@ async function ensureFolder(name: string): Promise<string> {
     folderIdCache[name] = j.files[0].id;
     return j.files[0].id;
   }
-  // create
   const create = await gfetch(`${API}/files?fields=id`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
