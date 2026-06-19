@@ -25,11 +25,15 @@ export function UserStorageSettings() {
   const [mode, setMode] = useState<StorageMode>("local");
   const [connecting, setConnecting] = useState(false);
   const [tick, setTick] = useState(0);
+  const [roles, setRoles] = useState<AppRole[]>([]);
+  const approved = roles.includes("approved") || roles.includes("admin");
+  const hasGdriveToken = !!session;
 
   useEffect(() => {
     if (!open) return;
     setMode(getStorageMode());
-  }, [open]);
+    void getMyRoles().then(setRoles);
+  }, [open, session?.id]);
 
   useEffect(() => {
     const onAuth = () => setTick((t) => t + 1);
