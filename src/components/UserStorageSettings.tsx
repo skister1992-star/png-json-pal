@@ -83,8 +83,6 @@ export function UserStorageSettings() {
   // Drive is "connected" when a Supabase session exists; the provider_token
   // comes from Supabase Google OAuth.
   const gConnected = hasGdriveToken;
-  // legacy local-storage token compat (no longer used, kept to avoid breaking imports)
-  void getStoredToken; void isTokenValid;
 
   return (
     <>
