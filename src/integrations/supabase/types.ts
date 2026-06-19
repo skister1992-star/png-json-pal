@@ -161,11 +161,43 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_claim_initial: { Args: never; Returns: boolean }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          last_sign_in_at: string
+          roles: Database["public"]["Enums"]["app_role"][]
+        }[]
+      }
       admin_login: {
         Args: { _password: string }
         Returns: {
@@ -177,10 +209,29 @@ export type Database = {
         Args: { _new_password: string }
         Returns: undefined
       }
+      admin_set_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       admin_verify_password: { Args: { _password: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      my_roles: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "approved" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -307,6 +358,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "approved", "user"],
+    },
   },
 } as const
