@@ -116,6 +116,38 @@ export function UserStorageSettings() {
             />
 
             <div
+              className={`rounded-md border p-3 ${mode === "server" ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="font-medium text-sm flex items-center gap-2">
+                    <Server className="h-4 w-4" />
+                    Server (Lovable Cloud)
+                    {mode === "server" && <ActiveBadge />}
+                    {!approved && (
+                      <span className="text-[11px] text-amber-600">
+                        Freigabe durch Admin erforderlich
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Daten werden verschlüsselt auf dem Server gespeichert und sind über
+                    alle Geräte verfügbar. Nur freigegebene Konten (Rolle <code>approved</code>
+                    oder <code>admin</code>) können diese Option nutzen.
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => activate("server", "Server")}
+                  disabled={!approved || mode === "server"}
+                >
+                  {mode === "server" ? "Aktiv" : "Als Speicherort verwenden"}
+                </Button>
+              </div>
+            </div>
+
+
+            <div
               className={`rounded-md border p-3 ${mode === "gdrive" ? "border-emerald-500/50 bg-emerald-500/5" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
