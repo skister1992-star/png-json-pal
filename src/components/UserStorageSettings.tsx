@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Database, Cloud, CloudOff, CheckCircle2 } from "lucide-react";
+import { Database, Cloud, CloudOff, CheckCircle2, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,9 +14,10 @@ import {
   setStorageMode,
   type StorageMode,
 } from "@/lib/storage-mode";
-import { connectGoogleDrive, disconnectGoogleDrive } from "@/lib/cloud-providers";
+import { connectGoogleDrive, disconnectGoogleDrive, getMyRoles, type AppRole } from "@/lib/cloud-providers";
 import { getStoredToken, isTokenValid } from "@/lib/cloud-providers/oauth";
 import { useSession } from "@/components/SiteHeader";
+import { supabase } from "@/integrations/supabase/client";
 
 export function UserStorageSettings() {
   const session = useSession();
