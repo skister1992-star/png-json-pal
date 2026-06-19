@@ -2,6 +2,7 @@
 
 export type StorageMode =
   | "local"
+  | "server"
   | "custom"
   | "gdrive"
   | "onedrive"
